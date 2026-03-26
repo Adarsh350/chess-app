@@ -11,7 +11,7 @@ import {
   UserCog,
   Users,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { MetricCard } from '../components/MetricCard'
 import { SectionCard } from '../components/SectionCard'
@@ -66,6 +66,8 @@ function formatDate(value?: string | null) {
 type StudentEditorPanelProps = Readonly<{
   editingStudent: StoredStudent | null
   isCreating: boolean
+  activationKey: number
+  onBrowseStudents: () => void
   onClose: () => void
   onCreated: (studentId: string, message: string) => void
   onUpdated: (studentId: string, message: string) => void
@@ -74,15 +76,31 @@ type StudentEditorPanelProps = Readonly<{
 function StudentEditorPanel({
   editingStudent,
   isCreating,
+  activationKey,
+  onBrowseStudents,
   onClose,
   onCreated,
   onUpdated,
 }: StudentEditorPanelProps) {
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
   const [form, setForm] = useState<StudentProfileInput>(
     editingStudent ? formFromStudent(editingStudent) : blankStudentForm(),
   )
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState('')
+
+  useEffect(() => {
+    if (!(editingStudent || isCreating)) {
+      return
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      nameInputRef.current?.focus()
+      nameInputRef.current?.select()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [activationKey, editingStudent, isCreating])
 
   async function handleSave() {
     const trimmedName = form.name.trim()
@@ -120,6 +138,12 @@ function StudentEditorPanel({
 
   return (
     <SectionCard
+      id="student-editor"
+      className={
+        editingStudent || isCreating
+          ? 'border-forest/20 shadow-[0_30px_70px_-46px_rgba(25,98,60,0.45)] ring-1 ring-forest/10'
+          : undefined
+      }
       eyebrow={editingStudent ? 'Edit Student' : isCreating ? 'New Student' : 'Quick Start'}
       title={
         editingStudent
@@ -138,6 +162,12 @@ function StudentEditorPanel({
     >
       {(editingStudent || isCreating) ? (
         <div className="grid gap-5">
+          <div className="rounded-[1.5rem] border border-forest/15 bg-mint-soft px-4 py-3 text-sm leading-7 text-forest">
+            {editingStudent
+              ? `You are editing ${editingStudent.name}'s profile now. Update the details below and save when you are ready.`
+              : 'You are creating a new student now. Add the basics below, then save the profile before uploading games.'}
+          </div>
+
           {formError ? (
             <div className="rounded-[1.5rem] border border-saffron/40 bg-saffron-soft px-4 py-3 text-sm font-semibold text-ink">
               {formError}
@@ -147,6 +177,7 @@ function StudentEditorPanel({
           <label className="grid gap-2 text-sm font-semibold text-ink">
             Student name
             <input
+              ref={nameInputRef}
               value={form.name}
               onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
               placeholder="Student name"
@@ -212,8 +243,8 @@ function StudentEditorPanel({
             3. Reopen the profile any time to review progress.
           </div>
           <div className="flex flex-wrap gap-3">
-            <button type="button" className="brand-button" onClick={onClose}>
-              Pick A Student To Edit
+            <button type="button" className="brand-button" onClick={onBrowseStudents}>
+              Browse Students
             </button>
             <Link className="ghost-button" to="/intake">
               <Upload className="mr-2 h-4 w-4" />
@@ -232,6 +263,10 @@ export function StudentsRoute() {
   const [studentSearch, setStudentSearch] = useState('')
   const [notice, setNotice] = useState('')
   const [actionError, setActionError] = useState('')
+  const [editorActivationKey, setEditorActivationKey] = useState(0)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
+  const editingStudentId = searchParams.get('edit')
+  const isCreating = searchParams.get('new') === '1'
 
   const record = useLiveQuery(async () => {
     const [students, games, analyses] = await Promise.all([
@@ -246,6 +281,21 @@ export function StudentsRoute() {
       analyses,
     }
   }, [])
+
+  useEffect(() => {
+    if (!(isCreating || editingStudentId)) {
+      return
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('student-editor')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [editorActivationKey, editingStudentId, isCreating])
 
   if (!record) {
     return null
@@ -265,8 +315,6 @@ export function StudentsRoute() {
   const activeIds = new Set(activeStudents.map((student) => student.id))
   const activeGames = record.games.filter((game) => activeIds.has(game.studentId))
   const activeAnalyses = record.analyses.filter((analysis) => activeIds.has(analysis.studentId))
-  const editingStudentId = searchParams.get('edit')
-  const isCreating = searchParams.get('new') === '1'
   const editingStudent = record.students.find((student) => student.id === editingStudentId) ?? null
   const filteredActiveStudents = activeStudents.filter((student) =>
     [student.name, student.tagline, student.focusStatement]
@@ -350,17 +398,29 @@ export function StudentsRoute() {
     setNotice('')
     setActionError('')
     setSearchParams({ new: '1' })
+    setEditorActivationKey((current) => current + 1)
   }
 
   function openEditStudent(studentId: string) {
     setNotice('')
     setActionError('')
     setSearchParams({ edit: studentId })
+    setEditorActivationKey((current) => current + 1)
   }
 
   function closeEditor() {
     setActionError('')
     setSearchParams({})
+  }
+
+  function focusStudentList() {
+    window.requestAnimationFrame(() => {
+      document.getElementById('student-list')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+      searchInputRef.current?.focus()
+    })
   }
 
   return (
@@ -457,6 +517,7 @@ export function StudentsRoute() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
         <SectionCard
+          id="student-list"
           eyebrow="Students"
           title="Your active student list"
           description="Search, open, and manage each student profile from here."
@@ -465,6 +526,7 @@ export function StudentsRoute() {
             <label className="relative block">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-copy/70" />
               <input
+                ref={searchInputRef}
                 value={studentSearch}
                 onChange={(event) => setStudentSearch(event.target.value)}
                 placeholder="Search students"
@@ -596,16 +658,20 @@ export function StudentsRoute() {
           key={editingStudent?.id ?? (isCreating ? 'new' : 'idle')}
           editingStudent={editingStudent}
           isCreating={isCreating}
+          activationKey={editorActivationKey}
+          onBrowseStudents={focusStudentList}
           onClose={closeEditor}
           onCreated={(studentId, message) => {
             setNotice(message)
             setActionError('')
             setSearchParams({ edit: studentId })
+            setEditorActivationKey((current) => current + 1)
           }}
           onUpdated={(studentId, message) => {
             setNotice(message)
             setActionError('')
             setSearchParams({ edit: studentId })
+            setEditorActivationKey((current) => current + 1)
           }}
         />
       </div>
