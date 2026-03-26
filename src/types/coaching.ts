@@ -13,6 +13,7 @@ export interface StoredStudent {
   createdAt: string
   updatedAt: string
   kind: 'seeded' | 'custom'
+  archivedAt: string | null
 }
 
 export interface StoredGame {
@@ -178,9 +179,17 @@ export interface PersistedAnalysis {
 }
 
 export interface ImportGameInput {
+  studentId?: string
   studentName: string
   focusStatement: string
   goals: string[]
   coachedSide: PlayerSide
   pgn: string
+}
+
+export interface StudentProfileInput {
+  name: string
+  tagline: string
+  focusStatement: string
+  goals: string[]
 }

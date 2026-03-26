@@ -1,5 +1,11 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { ImportGameInput, PersistedAnalysis, StoredGame, StoredStudent } from '../types/coaching'
+import type {
+  ImportGameInput,
+  PersistedAnalysis,
+  StoredGame,
+  StoredStudent,
+  StudentProfileInput,
+} from '../types/coaching'
 import { demoGames, demoStudent } from '../data/seeds'
 import { parseGame } from './chess/pgn'
 import { buildDeepReport, buildInstantReport } from './chess/report'
@@ -11,11 +17,29 @@ class DeepGameDatabase extends Dexie {
 
   constructor() {
     super('deepgame-coaching-os')
+
     this.version(1).stores({
       students: 'id, name, updatedAt',
       games: 'id, studentId, importedAt, coachedSide, opening',
       analyses: 'id, gameId, studentId, kind, createdAt',
     })
+
+    this.version(2)
+      .stores({
+        students: 'id, name, updatedAt, archivedAt, kind',
+        games: 'id, studentId, importedAt, coachedSide, opening',
+        analyses: 'id, gameId, studentId, kind, createdAt',
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table('students')
+          .toCollection()
+          .modify((student: StoredStudent & { archivedAt?: string | null }) => {
+            if (student.archivedAt === undefined) {
+              student.archivedAt = null
+            }
+          })
+      })
   }
 }
 
@@ -23,6 +47,18 @@ export const db = new DeepGameDatabase()
 
 function nowIso() {
   return new Date().toISOString()
+}
+
+function normalizeStudentName(name: string) {
+  return name.trim().toLowerCase()
+}
+
+function sanitizeGoals(goals: string[]) {
+  return goals.map((goal) => goal.trim()).filter(Boolean)
+}
+
+function fallbackTagline(name: string) {
+  return `${name}'s coaching profile`
 }
 
 function buildStoredGame(game: { id: string; studentId: string; coachedSide: 'white' | 'black'; pgn: string }): StoredGame {
@@ -57,6 +93,33 @@ function buildInstantAnalysis(game: StoredGame, student: StoredStudent): Persist
   }
 }
 
+function buildStoredStudent(input: StudentProfileInput, existing?: StoredStudent): StoredStudent {
+  const timestamp = nowIso()
+  const goals = sanitizeGoals(input.goals)
+
+  return {
+    id: existing?.id ?? crypto.randomUUID(),
+    name: input.name.trim(),
+    tagline: input.tagline.trim() || fallbackTagline(input.name.trim()),
+    focusStatement:
+      input.focusStatement.trim() || 'This student profile keeps the coaching goals and game history in one place.',
+    goals,
+    createdAt: existing?.createdAt ?? timestamp,
+    updatedAt: timestamp,
+    kind: existing?.kind ?? 'custom',
+    archivedAt: existing?.archivedAt ?? null,
+  }
+}
+
+async function findStudentByName(name: string) {
+  const normalized = normalizeStudentName(name)
+  return db.students
+    .filter(
+      (student) => normalizeStudentName(student.name) === normalized && student.archivedAt === null,
+    )
+    .first()
+}
+
 export async function ensureSeedData() {
   const timestamp = nowIso()
   const existingStudent = await db.students.get(demoStudent.id)
@@ -68,6 +131,7 @@ export async function ensureSeedData() {
     createdAt: existingStudent?.createdAt ?? timestamp,
     updatedAt: timestamp,
     kind: 'seeded',
+    archivedAt: existingStudent?.archivedAt ?? null,
   }
 
   const games = demoGames.map((game) => {
@@ -104,22 +168,123 @@ export async function ensureSeedData() {
   })
 }
 
-export async function upsertImportedGame(input: ImportGameInput) {
-  const timestamp = nowIso()
-  const existingStudent = await db.students
-    .filter((student) => student.name.toLowerCase() === input.studentName.trim().toLowerCase())
+export async function createStudentProfile(input: StudentProfileInput) {
+  const existingStudent = await findStudentByName(input.name)
+  if (existingStudent) {
+    throw new Error('A student with that name already exists. Open the student or choose a different name.')
+  }
+
+  const student = buildStoredStudent(input)
+  await db.students.add(student)
+  return student
+}
+
+export async function updateStudentProfile(studentId: string, input: StudentProfileInput) {
+  const existingStudent = await db.students.get(studentId)
+  if (!existingStudent) {
+    throw new Error('That student could not be found.')
+  }
+
+  const normalizedName = normalizeStudentName(input.name)
+  const conflictingStudent = await db.students
+    .filter(
+      (student) =>
+        student.id !== studentId &&
+        student.archivedAt === null &&
+        normalizeStudentName(student.name) === normalizedName,
+    )
     .first()
 
-  const student: StoredStudent = existingStudent ?? {
-    id: crypto.randomUUID(),
-    name: input.studentName.trim(),
-    tagline: 'Custom offline coaching student',
-    focusStatement: input.focusStatement.trim() || 'A custom imported student profile for DeepGame Coaching OS.',
-    goals: input.goals.filter(Boolean),
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    kind: 'custom',
+  if (conflictingStudent) {
+    throw new Error('Another active student already uses that name.')
   }
+
+  const updatedStudent = buildStoredStudent(input, existingStudent)
+  await db.students.put(updatedStudent)
+  return updatedStudent
+}
+
+export async function archiveStudentProfile(studentId: string) {
+  const student = await db.students.get(studentId)
+  if (!student) {
+    throw new Error('That student could not be found.')
+  }
+
+  await db.students.update(studentId, {
+    archivedAt: nowIso(),
+    updatedAt: nowIso(),
+  })
+}
+
+export async function restoreStudentProfile(studentId: string) {
+  const student = await db.students.get(studentId)
+  if (!student) {
+    throw new Error('That student could not be found.')
+  }
+
+  const conflict = await db.students
+    .filter(
+      (entry) =>
+        entry.id !== studentId &&
+        entry.archivedAt === null &&
+        normalizeStudentName(entry.name) === normalizeStudentName(student.name),
+    )
+    .first()
+
+  if (conflict) {
+    throw new Error('A different active student already uses this name. Rename that profile first.')
+  }
+
+  await db.students.update(studentId, {
+    archivedAt: null,
+    updatedAt: nowIso(),
+  })
+}
+
+export async function deleteStudentProfile(studentId: string) {
+  const student = await db.students.get(studentId)
+  if (!student) {
+    throw new Error('That student could not be found.')
+  }
+
+  if (student.kind === 'seeded') {
+    throw new Error('The sample student cannot be permanently deleted. Hide it instead.')
+  }
+
+  const games = await db.games.where('studentId').equals(studentId).toArray()
+  const gameIds = games.map((game) => game.id)
+
+  await db.transaction('rw', db.students, db.games, db.analyses, async () => {
+    if (gameIds.length) {
+      await db.analyses.where('gameId').anyOf(gameIds).delete()
+    }
+    await db.games.where('studentId').equals(studentId).delete()
+    await db.students.delete(studentId)
+  })
+}
+
+export async function upsertImportedGame(input: ImportGameInput) {
+  const timestamp = nowIso()
+  const existingStudent =
+    (input.studentId ? await db.students.get(input.studentId) : null) ??
+    (input.studentName.trim() ? await findStudentByName(input.studentName) : null)
+
+  if (input.studentId && !existingStudent) {
+    throw new Error('The selected student could not be found. Refresh the page and try again.')
+  }
+
+  if (existingStudent?.archivedAt) {
+    throw new Error('That student is archived. Restore the profile before adding new games.')
+  }
+
+  const student =
+    existingStudent ??
+    buildStoredStudent({
+      name: input.studentName,
+      tagline: fallbackTagline(input.studentName.trim()),
+      focusStatement: input.focusStatement,
+      goals: input.goals,
+    })
 
   const parsed = parseGame(input.pgn, input.coachedSide, student.name)
   const game: StoredGame = {
@@ -151,9 +316,11 @@ export async function upsertImportedGame(input: ImportGameInput) {
   await db.transaction('rw', db.students, db.games, db.analyses, async () => {
     if (existingStudent) {
       await db.students.update(existingStudent.id, {
+        name: student.name,
+        tagline: student.tagline,
         updatedAt: timestamp,
         focusStatement: input.focusStatement.trim() || existingStudent.focusStatement,
-        goals: input.goals.filter(Boolean).length ? input.goals.filter(Boolean) : existingStudent.goals,
+        goals: sanitizeGoals(input.goals).length ? sanitizeGoals(input.goals) : existingStudent.goals,
       })
     } else {
       await db.students.add(student)

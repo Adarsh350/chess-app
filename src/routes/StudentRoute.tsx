@@ -97,8 +97,11 @@ export function StudentRoute() {
               ))}
             </div>
             <div className="mt-7 flex flex-wrap gap-3">
-              <Link className="brand-button" to="/intake">
+              <Link className="brand-button" to={`/intake?studentId=${student.id}`}>
                 Upload Another Game
+              </Link>
+              <Link className="ghost-button" to={`/students?edit=${student.id}`}>
+                Manage Student
               </Link>
               {latestGame ? (
                 <Link className="ghost-button" to={`/review/${latestGame.id}`}>

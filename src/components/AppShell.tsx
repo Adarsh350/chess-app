@@ -1,13 +1,13 @@
 import { startTransition, useEffect, useState } from 'react'
-import { CloudOff, ShieldCheck, Upload } from 'lucide-react'
+import { CloudOff, ShieldCheck, Upload, Users } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { ensureSeedData } from '../lib/db'
 import { BrandMark } from './BrandMark'
 
 const navItems = [
   { to: '/', label: 'Home' },
+  { to: '/students', label: 'Students' },
   { to: '/intake', label: 'Upload A Game' },
-  { to: '/students/demo-samaritan963', label: 'Sample Progress' },
 ]
 
 export function AppShell() {
@@ -90,6 +90,10 @@ export function AppShell() {
               </nav>
 
               <div className="app-actions flex flex-wrap gap-3">
+                <NavLink className="ghost-button" to="/students?new=1">
+                  <Users className="mr-2 h-4 w-4" />
+                  Create Student
+                </NavLink>
                 <NavLink className="brand-button" to="/intake">
                   <Upload className="mr-2 h-4 w-4" />
                   Upload A Game
