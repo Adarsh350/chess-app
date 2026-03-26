@@ -2,7 +2,7 @@ import Dexie, { type EntityTable } from 'dexie'
 import type { ImportGameInput, PersistedAnalysis, StoredGame, StoredStudent } from '../types/coaching'
 import { demoGames, demoStudent } from '../data/seeds'
 import { parseGame } from './chess/pgn'
-import { buildInstantReport } from './chess/report'
+import { buildDeepReport, buildInstantReport } from './chess/report'
 
 class DeepGameDatabase extends Dexie {
   students!: EntityTable<StoredStudent, 'id'>
@@ -58,26 +58,49 @@ function buildInstantAnalysis(game: StoredGame, student: StoredStudent): Persist
 }
 
 export async function ensureSeedData() {
-  const existingStudents = await db.students.count()
-  if (existingStudents > 0) {
-    return
-  }
-
   const timestamp = nowIso()
+  const existingStudent = await db.students.get(demoStudent.id)
+  const existingGames = await db.games.where('studentId').equals(demoStudent.id).toArray()
+  const existingAnalyses = await db.analyses.where('studentId').equals(demoStudent.id).toArray()
+  const existingGamesById = new Map(existingGames.map((game) => [game.id, game]))
   const student: StoredStudent = {
     ...demoStudent,
-    createdAt: timestamp,
+    createdAt: existingStudent?.createdAt ?? timestamp,
     updatedAt: timestamp,
     kind: 'seeded',
   }
 
-  const games = demoGames.map(buildStoredGame)
+  const games = demoGames.map((game) => {
+    const existing = existingGamesById.get(game.id)
+    return {
+      ...buildStoredGame(game),
+      importedAt: existing?.importedAt ?? timestamp,
+    }
+  })
   const analyses = games.map((game) => buildInstantAnalysis(game, student))
+  const refreshedDeepAnalyses = existingAnalyses
+    .filter((analysis) => analysis.kind === 'deep' && analysis.engineReview)
+    .map((analysis) => {
+      const game = games.find((entry) => entry.id === analysis.gameId)
+      if (!game || !analysis.engineReview) {
+        return null
+      }
+
+      const parsed = parseGame(game.pgn, game.coachedSide, student.name)
+      return {
+        ...analysis,
+        report: buildDeepReport(parsed, analysis.engineReview),
+      } satisfies PersistedAnalysis
+    })
+    .filter((analysis): analysis is PersistedAnalysis => Boolean(analysis))
 
   await db.transaction('rw', db.students, db.games, db.analyses, async () => {
-    await db.students.add(student)
-    await db.games.bulkAdd(games)
-    await db.analyses.bulkAdd(analyses)
+    await db.students.put(student)
+    await db.games.bulkPut(games)
+    await db.analyses.bulkPut(analyses)
+    if (refreshedDeepAnalyses.length) {
+      await db.analyses.bulkPut(refreshedDeepAnalyses)
+    }
   })
 }
 
