@@ -1,0 +1,29 @@
+{
+  "name": "DeepGame Coaching OS",
+  "short_name": "DeepGame OS",
+  "description": "Offline-first chess coaching workspace for PGN review, style diagnosis, and training plans.",
+  "display": "standalone",
+  "background_color": "#f7f5ee",
+  "theme_color": "#1f5d38",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/deepgame-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

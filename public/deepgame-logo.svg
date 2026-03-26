@@ -1,0 +1,44 @@
+<svg width="1460" height="360" viewBox="0 0 1460 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>DeepGame Coaching</title>
+  <g transform="translate(18 22)">
+    <path
+      d="M56 214V90C56 48 85 28 126 28H147V46C165 50 182 59 196 74L218 95C227 104 232 114 232 126C232 138 227 149 217 158C208 167 196 172 182 172H157L189 204V214H56Z"
+      stroke="#1F5D38"
+      stroke-width="18"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M71 202L112 164H91L136 119L181 164H157V202H71Z"
+      fill="#1F5D38"
+      stroke="#1F5D38"
+      stroke-width="6"
+      stroke-linejoin="round"
+    />
+    <path d="M95 196H133V212H95Z" fill="#F1A11C" />
+    <path d="M133 196H166V212H133Z" fill="#1F5D38" />
+    <circle cx="156" cy="86" r="8.5" fill="#F1A11C" />
+  </g>
+  <text
+    x="318"
+    y="171"
+    fill="#161B18"
+    font-family="Manrope, &quot;Avenir Next&quot;, &quot;Segoe UI&quot;, Arial, sans-serif"
+    font-size="132"
+    font-weight="800"
+    letter-spacing="-5"
+  >
+    DeepGame
+  </text>
+  <text
+    x="320"
+    y="279"
+    fill="#1F5D38"
+    font-family="Manrope, &quot;Avenir Next&quot;, &quot;Segoe UI&quot;, Arial, sans-serif"
+    font-size="74"
+    font-weight="500"
+    letter-spacing="18"
+  >
+    COACHING
+  </text>
+</svg>

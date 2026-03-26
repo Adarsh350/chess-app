@@ -1,0 +1,20 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>DeepGame Coaching Mark</title>
+  <path
+    d="M56 214V90C56 48 85 28 126 28H147V46C165 50 182 59 196 74L218 95C227 104 232 114 232 126C232 138 227 149 217 158C208 167 196 172 182 172H157L189 204V214H56Z"
+    stroke="#1F5D38"
+    stroke-width="18"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M71 202L112 164H91L136 119L181 164H157V202H71Z"
+    fill="#1F5D38"
+    stroke="#1F5D38"
+    stroke-width="6"
+    stroke-linejoin="round"
+  />
+  <path d="M95 196H133V212H95Z" fill="#F1A11C" />
+  <path d="M133 196H166V212H133Z" fill="#1F5D38" />
+  <circle cx="156" cy="86" r="8.5" fill="#F1A11C" />
+</svg>
