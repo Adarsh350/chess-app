@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowRight, BrainCircuit, Crosshair, Radar, Swords, Upload } from 'lucide-react'
+import { ArrowRight, CheckCircle2, NotebookPen, Radar, Upload } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { MetricCard } from '../components/MetricCard'
 import { ScoreMeter } from '../components/ScoreMeter'
@@ -41,28 +41,27 @@ export function DashboardRoute() {
     studentGames.map((game) => game.id),
     studentAnalyses,
   )
-  const flagshipGame = studentGames.find((game) => game.id === 'game-grunfeld-pressure') ?? studentGames[0]
 
   return (
     <div className="px-5 py-8 sm:px-7 sm:py-10">
       <section className="soft-panel overflow-hidden p-8 sm:p-10">
-        <p className="section-label">The DeepGame Difference</p>
+        <p className="section-label">Start With A Game</p>
         <div className="mt-4 grid gap-8 xl:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)] xl:items-end">
           <div>
             <h1 className="max-w-4xl font-heading text-4xl font-bold tracking-[-0.06em] text-ink sm:text-6xl">
-              Every student gets a coaching system that is theirs alone.
+              Upload a game and see what to work on next.
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-8 text-copy sm:text-lg">
-              This workspace mirrors your site positioning: style identification first, strength-first training second, and clean performance tracking underneath it all. Everything here runs locally on the device.
+              DeepGame Coaching keeps improvement easy to follow for students and parents. Every saved game becomes a clear summary, the key moments worth replaying, and a practice plan for the next lesson.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link className="brand-button" to="/intake">
                 <Upload className="mr-2 h-4 w-4" />
-                Import New PGN
+                Upload A Game
               </Link>
-              {flagshipGame ? (
-                <Link className="ghost-button" to={`/review/${flagshipGame.id}`}>
-                  Open Flagship Report
+              {primaryStudent ? (
+                <Link className="ghost-button" to={`/students/${primaryStudent.id}`}>
+                  See Sample Progress
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               ) : null}
@@ -72,19 +71,19 @@ export function DashboardRoute() {
           <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
             {[
               {
+                icon: Upload,
+                title: 'Upload The Game',
+                body: 'Paste a PGN or load a saved file and the app turns it into a useful review.',
+              },
+              {
                 icon: Radar,
-                title: 'Playing Style Identification',
-                body: 'The report maps how the student naturally competes so training sharpens strengths instead of replacing them.',
+                title: 'See The Turning Points',
+                body: 'The review highlights where the game changed and what those moments teach.',
               },
               {
-                icon: Swords,
-                title: 'Strength-First Training',
-                body: 'The coaching plan turns recurring motifs into weekly drills, model games, and a clear tactical filter.',
-              },
-              {
-                icon: BrainCircuit,
-                title: 'Performance Tracking',
-                body: 'Every imported game becomes part of a running profile, and deep reviews can be added with local Stockfish whenever you need them.',
+                icon: NotebookPen,
+                title: 'Leave With A Plan',
+                body: 'Each game review ends with next steps so practice feels clear instead of random.',
               },
             ].map((card) => (
               <div key={card.title} className="panel p-5">
@@ -107,32 +106,32 @@ export function DashboardRoute() {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          label="Students"
-          value={String(students.length)}
-          description="Profiles stored locally with goals, focus statements, and reusable coaching context."
-        />
-        <MetricCard
-          label="Imported Games"
+          label="Games Reviewed"
           value={String(games.length)}
-          description="PGNs imported into IndexedDB and turned into instant reports on device."
+          description="Every saved game becomes part of the student's progress trail."
         />
         <MetricCard
-          label="Deep Reviews"
+          label="Wins Recorded"
+          value={`${summary.winRate}%`}
+          description="A simple view of how often the saved games finish well from the student's side."
+        />
+        <MetricCard
+          label="Detailed Reviews"
           value={String(summary.deepReviewCount)}
-          description="Local Stockfish passes saved alongside instant reports for stronger session prep."
+          description="Closer reviews are saved alongside the main summary whenever you want more depth."
         />
         <MetricCard
-          label="Signature Style"
+          label="Main Playing Style"
           value={summary.signatureStyle}
-          description="The dominant style signal currently surfacing from the student report history."
+          description="The strongest pattern currently showing up across the saved games."
         />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <SectionCard
-          eyebrow="Portfolio Student"
-          title={primaryStudent ? `${primaryStudent.name}'s current competitive fingerprint` : 'Student profile'}
-          description={primaryStudent?.focusStatement}
+          eyebrow="Sample Progress Snapshot"
+          title={primaryStudent ? `${primaryStudent.name}'s current playing style` : 'Student progress'}
+          description="This gives students and parents a quick picture of how the games are trending right now."
         >
           {summary.averageMeters.length ? (
             <div className="grid gap-4 md:grid-cols-2">
@@ -141,7 +140,7 @@ export function DashboardRoute() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-copy">Import a PGN to generate the first style fingerprint.</p>
+            <p className="text-sm text-copy">Upload a game to create the first progress snapshot.</p>
           )}
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -154,14 +153,14 @@ export function DashboardRoute() {
         </SectionCard>
 
         <SectionCard
-          eyebrow="Coaching Priorities"
-          title="The repeat themes the coach should stay on"
-          description="These come from the student’s current report stack, so they evolve as more games are imported."
+          eyebrow="What Stands Out"
+          title="What is going well and what comes next"
+          description="These are the patterns showing up most often across the current saved games."
         >
           <div className="grid gap-4">
-            <div className="rounded-[1.5rem] border border-line bg-ivory/80 p-5">
+            <div className="rounded-[1.5rem] border border-line bg-mint-soft/70 p-5">
               <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                Repeat leverage
+                Going well
               </p>
               <ul className="mt-4 grid gap-3">
                 {summary.repeatStrengths.map((item) => (
@@ -171,9 +170,10 @@ export function DashboardRoute() {
                 ))}
               </ul>
             </div>
-            <div className="rounded-[1.5rem] border border-line bg-ivory/80 p-5">
+
+            <div className="rounded-[1.5rem] border border-line bg-saffron-soft/70 p-5">
               <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                Repeat leaks
+                Working on next
               </p>
               <ul className="mt-4 grid gap-3">
                 {summary.repeatLeaks.map((item) => (
@@ -189,9 +189,9 @@ export function DashboardRoute() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <SectionCard
-          eyebrow="Recent Reports"
-          title="Game files ready to review"
-          description="Each card opens the full board, style report, and session-prep workflow."
+          eyebrow="Recent Game Reviews"
+          title="Open any saved game review"
+          description="Tap a game to see the summary, the key moments, and the practice plan."
         >
           <div className="grid gap-4">
             {studentGames.map((game) => {
@@ -209,11 +209,11 @@ export function DashboardRoute() {
                         {game.title}
                       </h3>
                       <p className="mt-2 text-sm leading-7 text-copy">
-                        {analysis?.report.oneLiner ?? 'Instant report ready.'}
+                        {analysis?.report.oneLiner ?? 'This game review is ready to open.'}
                       </p>
                     </div>
                     <div className="rounded-2xl bg-ivory px-4 py-3 text-sm font-semibold text-forest">
-                      {analysis?.kind === 'deep' ? 'Deep reviewed' : 'Instant report'}
+                      {analysis?.kind === 'deep' ? 'Detailed review' : 'Game summary'}
                     </div>
                   </div>
                 </Link>
@@ -223,19 +223,19 @@ export function DashboardRoute() {
         </SectionCard>
 
         <SectionCard
-          eyebrow="Operational Notes"
-          title="What makes this build portfolio-strong"
-          description="It shows applied automation, local-first engineering, and coaching system design instead of just a pretty dashboard."
+          eyebrow="What Families Get"
+          title="Each uploaded game turns into something useful"
+          description="The app keeps the experience simple and practical from the first upload."
         >
           <div className="grid gap-4 md:grid-cols-2">
             {[
-              'Offline PGN import and IndexedDB storage',
-              'Rule-based style fingerprint generation',
-              'Session-ready coaching reports with training plans',
-              'Optional local Stockfish deep review',
+              'A clear summary of what the student did well',
+              'The key moments that changed the game',
+              'A practice plan for the next lesson or week',
+              'A progress trail that is easy to revisit later',
             ].map((item) => (
               <div key={item} className="rounded-[1.5rem] border border-line bg-white p-5 text-sm font-semibold text-ink">
-                <Crosshair className="mb-3 h-4 w-4 text-forest" />
+                <CheckCircle2 className="mb-3 h-4 w-4 text-forest" />
                 {item}
               </div>
             ))}

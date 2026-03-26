@@ -20,10 +20,10 @@ export function IntakeRoute() {
   const [isPending, startTransition] = useTransition()
   const [studentName, setStudentName] = useState('')
   const [focusStatement, setFocusStatement] = useState(
-    'This student is strongest when the position is active and practical. The coaching goal is to tighten the decision filter without flattening the style.',
+    'The student wants clearer game plans and calmer decisions when the position gets sharp.',
   )
   const [goalsText, setGoalsText] = useState(
-    'Map my playing style clearly\nBuild a weekly training plan around my real strengths\nReduce the moments where the position slips for no reason',
+    'Understand my biggest strengths\nSee the moments where the game turned\nKnow what to practice before the next lesson',
   )
   const [coachedSide, setCoachedSide] = useState<PlayerSide>('white')
   const [pgn, setPgn] = useState('')
@@ -57,12 +57,12 @@ export function IntakeRoute() {
 
   async function handleSubmit() {
     if (!studentName.trim()) {
-      setSubmitError('Add the student name before generating the report.')
+      setSubmitError('Please add the student name before creating the review.')
       return
     }
 
     if (!pgn.trim()) {
-      setSubmitError('Import a PGN before continuing.')
+      setSubmitError('Please add a PGN before continuing.')
       return
     }
 
@@ -80,29 +80,31 @@ export function IntakeRoute() {
         navigate(`/review/${result.gameId}`)
       })
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'The import could not be saved locally.')
+      setSubmitError(error instanceof Error ? error.message : 'The game could not be saved.')
     }
   }
+
+  const moveCount = preview ? Math.ceil(preview.moves.length / 2) : 0
 
   return (
     <div className="px-5 py-8 sm:px-7 sm:py-10">
       <section className="soft-panel overflow-hidden p-8 sm:p-10">
-        <p className="section-label">PGN Intake</p>
+        <p className="section-label">Upload A Game</p>
         <div className="mt-4 grid gap-8 xl:grid-cols-[minmax(0,1.1fr)_minmax(19rem,0.9fr)] xl:items-end">
           <div>
             <h1 className="max-w-4xl font-heading text-4xl font-bold tracking-[-0.06em] text-ink sm:text-6xl">
-              Turn one uploaded game into a real coaching report.
+              Upload one game and get a clear coaching summary.
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-8 text-copy sm:text-lg">
-              This flow stays fully offline. The PGN is parsed in-browser, the instant report is saved to IndexedDB, and you can add a local Stockfish deep review later from the game workspace.
+              Students and parents can use this page to turn one saved game into something useful: what went well, where the game turned, and what to practice next.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <button type="button" className="brand-button" onClick={loadDemo}>
                 <Sparkles className="mr-2 h-4 w-4" />
-                Load Signature Demo
+                Use Sample Game
               </button>
               <Link className="ghost-button" to="/">
-                Back To Dashboard
+                Back Home
               </Link>
             </div>
           </div>
@@ -111,18 +113,18 @@ export function IntakeRoute() {
             {[
               {
                 icon: UserRound,
-                title: 'Student Context',
-                body: 'Capture the player name, goals, and coaching frame so every report sounds intentional instead of generic.',
+                title: 'Simple To Fill In',
+                body: 'Add the student name, say what they want help with, and paste the game. That is enough to get started.',
               },
               {
                 icon: ClipboardList,
-                title: 'Offline Parsing',
-                body: 'Headers, result, opening, and move structure are extracted locally from the PGN the moment it lands here.',
+                title: 'Clear Game Summary',
+                body: 'The app pulls out the opening, result, and key moments so the review is easy to understand.',
               },
               {
                 icon: CheckCircle2,
-                title: 'Coach-Ready Output',
-                body: 'The saved report immediately feeds the review workspace, training plan, and later student profile history.',
+                title: 'Useful Next Steps',
+                body: 'Each saved review leads straight into practice ideas and a progress trail you can come back to later.',
               },
             ].map((item) => (
               <div key={item.title} className="panel p-5">
@@ -139,9 +141,9 @@ export function IntakeRoute() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
         <SectionCard
-          eyebrow="Import Flow"
-          title="Add the student context and the game"
-          description="The intake stays lightweight on purpose. We capture enough context to make the report sound like DeepGame coaching, not like an engine dump."
+          eyebrow="Game Details"
+          title="Add the student and the game"
+          description="Keep this lightweight. Add the student's name, say what they want help with, and paste the PGN."
         >
           <div className="grid gap-5">
             <div className="grid gap-5 lg:grid-cols-2">
@@ -156,7 +158,7 @@ export function IntakeRoute() {
               </label>
 
               <fieldset className="grid gap-2 text-sm font-semibold text-ink">
-                <legend className="mb-1">Coached side</legend>
+                <legend className="mb-1">Which color did the student play?</legend>
                 <div className="grid grid-cols-2 gap-3">
                   {(['white', 'black'] as PlayerSide[]).map((side) => (
                     <button
@@ -178,10 +180,11 @@ export function IntakeRoute() {
             </div>
 
             <label className="grid gap-2 text-sm font-semibold text-ink">
-              Focus statement
+              What should we focus on right now?
               <textarea
                 value={focusStatement}
                 onChange={(event) => setFocusStatement(event.target.value)}
+                placeholder="For example: planning better in the middlegame, finishing attacks, or playing more calmly under pressure."
                 className="min-h-28 rounded-[1.5rem] border border-line bg-white px-4 py-3 text-sm leading-7 text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
               />
             </label>
@@ -206,7 +209,7 @@ export function IntakeRoute() {
 
             <div className="flex flex-wrap gap-3">
               <button type="button" className="brand-button" disabled={isPending} onClick={() => void handleSubmit()}>
-                {isPending ? 'Opening report...' : 'Create Local Report'}
+                {isPending ? 'Opening review...' : 'Create Game Review'}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </button>
               <Link className="ghost-button" to="/">
@@ -217,9 +220,9 @@ export function IntakeRoute() {
         </SectionCard>
 
         <SectionCard
-          eyebrow="Live Preview"
-          title="What the app can already see from this PGN"
-          description="This is the confidence check before saving. If the headers or side selection are wrong, fix them here and the rest of the flow stays clean."
+          eyebrow="Preview"
+          title="What we found in this game"
+          description="This helps you confirm the right player, opening, and result before saving the review."
         >
           {preview ? (
             <div className="grid gap-4">
@@ -234,7 +237,7 @@ export function IntakeRoute() {
                 <div className="mt-5 flex flex-wrap gap-3">
                   <span className="metric-chip">{preview.opening}</span>
                   <span className="metric-chip">{preview.outcome}</span>
-                  <span className="metric-chip">{preview.moves.length} plies</span>
+                  <span className="metric-chip">{moveCount} moves</span>
                 </div>
               </div>
 
@@ -253,13 +256,13 @@ export function IntakeRoute() {
 
                 <div className="rounded-[1.5rem] border border-line bg-white p-5">
                   <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                    Output path
+                    What happens next
                   </p>
                   <div className="mt-4 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
-                    Instant Report First
+                    Clear review first
                   </div>
                   <p className="mt-2 text-sm leading-7 text-copy">
-                    The app will save a full heuristic report now, then let you add a deeper Stockfish-backed pass from the review page.
+                    The app will save a game summary, key turning points, and a practice plan you can use for the next lesson or week of training.
                   </p>
                 </div>
               </div>
@@ -270,7 +273,7 @@ export function IntakeRoute() {
                 <AlertCircle className="mt-0.5 h-5 w-5 text-saffron" />
                 <div>
                   <h3 className="font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
-                    PGN preview needs a fix
+                    This PGN needs a quick fix
                   </h3>
                   <p className="mt-2 text-sm leading-7 text-copy">{previewError}</p>
                 </div>
@@ -279,7 +282,7 @@ export function IntakeRoute() {
           ) : (
             <div className="rounded-[1.5rem] border border-dashed border-forest/20 bg-ivory/70 p-6">
               <p className="text-sm leading-7 text-copy">
-                Paste or drop a PGN to see the opening, player names, result, and move count before saving the report.
+                Paste or drop a PGN to preview the student name, opening, result, and move count before saving the review.
               </p>
             </div>
           )}

@@ -1,12 +1,13 @@
 import { startTransition, useEffect, useState } from 'react'
-import { ArrowUpRight, CloudOff, LaptopMinimal, Upload, Wifi } from 'lucide-react'
+import { CloudOff, ShieldCheck, Upload } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { ensureSeedData } from '../lib/db'
 import { BrandMark } from './BrandMark'
 
 const navItems = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/intake', label: 'Import PGN' },
+  { to: '/', label: 'Home' },
+  { to: '/intake', label: 'Upload A Game' },
+  { to: '/students/demo-samaritan963', label: 'Sample Progress' },
 ]
 
 export function AppShell() {
@@ -57,16 +58,15 @@ export function AppShell() {
             <div className="flex flex-wrap items-center gap-4">
               <BrandMark />
               <div className="metric-chip">
-                <LaptopMinimal className="h-3.5 w-3.5" />
-                Fully offline coaching OS
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Clear, personal chess coaching
               </div>
-              <div className="metric-chip">
-                {isOnline ? <Wifi className="h-3.5 w-3.5" /> : <CloudOff className="h-3.5 w-3.5" />}
-                {isOnline ? 'Online-capable' : 'Offline mode active'}
-              </div>
-              <div className="metric-chip bg-saffron-soft text-saffron">
-                Zero paid APIs at runtime
-              </div>
+              {!isOnline ? (
+                <div className="metric-chip">
+                  <CloudOff className="h-3.5 w-3.5" />
+                  Offline mode active
+                </div>
+              ) : null}
             </div>
 
             <div className="flex flex-col gap-4 lg:items-end">
@@ -90,13 +90,9 @@ export function AppShell() {
               </nav>
 
               <div className="app-actions flex flex-wrap gap-3">
-                <NavLink className="ghost-button" to="/students/demo-samaritan963">
-                  Portfolio Student
-                  <ArrowUpRight className="ml-2 h-4 w-4" />
-                </NavLink>
                 <NavLink className="brand-button" to="/intake">
                   <Upload className="mr-2 h-4 w-4" />
-                  Create Local Report
+                  Upload A Game
                 </NavLink>
               </div>
             </div>
@@ -109,12 +105,12 @@ export function AppShell() {
           ) : (
             <div className="px-5 py-8 sm:px-7 sm:py-10">
               <div className="soft-panel p-8">
-                <p className="section-label">Booting local workspace</p>
+                <p className="section-label">Loading</p>
                 <h1 className="mt-4 max-w-3xl font-heading text-4xl font-bold tracking-[-0.05em] text-ink sm:text-6xl">
-                  Preparing your seeded DeepGame coaching environment.
+                  Getting your coaching space ready.
                 </h1>
                 <p className="mt-4 max-w-2xl text-base text-copy sm:text-lg">
-                  Creating the offline student profile, importing the demo PGNs, and generating instant reports.
+                  Bringing in your saved games, reports, and progress notes.
                 </p>
               </div>
             </div>

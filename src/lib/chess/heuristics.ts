@@ -154,22 +154,22 @@ export function deriveStyleMetrics(game: ParsedGame): StyleMetrics {
 
 function archetypeFromMetrics(metrics: StyleMetrics) {
   if (metrics.initiative >= 68 && metrics.tacticalAppetite >= 64) {
-    return 'Dynamic initiative hunter'
+    return 'Aggressive attacking player'
   }
 
   if (metrics.structure >= 68 && metrics.conversion >= 60) {
-    return 'Technical pressure builder'
+    return 'Calm positional player'
   }
 
   if (metrics.structure >= 60 && metrics.initiative >= 56) {
-    return 'Balanced strategic competitor'
+    return 'Balanced all-round player'
   }
 
   if (metrics.initiative >= 60 && metrics.conversion >= 58) {
-    return 'Counterpunching practical player'
+    return 'Practical counterattacker'
   }
 
-  return 'Flexible competitive improver'
+  return 'Flexible improving player'
 }
 
 export function buildStyleFingerprint(metrics: StyleMetrics): StyleFingerprint {

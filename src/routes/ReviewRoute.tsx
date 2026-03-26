@@ -15,7 +15,23 @@ import { downloadMarkdownReport } from '../lib/reportExport'
 import type { PersistedAnalysis } from '../types/coaching'
 
 function prettySeverity(severity: string) {
-  return severity[0]!.toUpperCase() + severity.slice(1)
+  if (severity === 'blunder') {
+    return 'Major swing'
+  }
+
+  if (severity === 'mistake') {
+    return 'Key mistake'
+  }
+
+  if (severity === 'inaccuracy') {
+    return 'Small slip'
+  }
+
+  if (severity === 'solid') {
+    return 'Solid choice'
+  }
+
+  return 'Strong choice'
 }
 
 function severityClasses(severity: string) {
@@ -91,11 +107,11 @@ export function ReviewRoute() {
             This game is not available locally.
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-copy">
-            Return to the dashboard or import a fresh PGN to create a new coaching report.
+            Head back home or upload a new PGN to create another game review.
           </p>
           <div className="mt-6">
             <Link className="brand-button" to="/">
-              Back To Dashboard
+              Back Home
             </Link>
           </div>
         </div>
@@ -128,7 +144,7 @@ export function ReviewRoute() {
       setReviewError('')
       setIsReviewing(true)
       setProgress(0)
-      setProgressLabel('Preparing local Stockfish review')
+      setProgressLabel('Preparing the detailed review')
 
       const snapshot = await runDeepEngineReview(parsedGame, 10, (nextProgress, label) => {
         setProgress(nextProgress)
@@ -147,9 +163,9 @@ export function ReviewRoute() {
 
       await saveDeepAnalysis(deepAnalysis)
       setProgress(100)
-      setProgressLabel('Deep review saved locally')
+      setProgressLabel('Detailed review saved')
     } catch (error) {
-      setReviewError(error instanceof Error ? error.message : 'Deep review failed.')
+      setReviewError(error instanceof Error ? error.message : 'The detailed review could not be completed.')
     } finally {
       setIsReviewing(false)
     }
@@ -167,7 +183,7 @@ export function ReviewRoute() {
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-8 text-copy sm:text-lg">
               {report?.executiveSummary ??
-                'The report is ready locally. Add the deep review when you want centipawn-based coaching priorities on top of the style diagnosis.'}
+                'The game summary is ready. Add a more detailed review whenever you want a closer look at the biggest turning points.'}
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <button
@@ -177,7 +193,7 @@ export function ReviewRoute() {
                 onClick={() => void handleDeepReview()}
               >
                 <Sparkles className="mr-2 h-4 w-4" />
-                {engineReview ? 'Refresh Deep Review' : 'Run Local Deep Review'}
+                {engineReview ? 'Refresh Detailed Review' : 'Add Detailed Review'}
               </button>
               <button
                 type="button"
@@ -186,14 +202,14 @@ export function ReviewRoute() {
                 onClick={() => report && downloadMarkdownReport(student, game, report)}
               >
                 <Download className="mr-2 h-4 w-4" />
-                Export Markdown
+                Download Report
               </button>
               <button type="button" className="ghost-button" onClick={() => window.print()}>
                 <Printer className="mr-2 h-4 w-4" />
                 Print Report
               </button>
               <Link className="ghost-button" to={`/students/${student.id}`}>
-                Open Student Profile
+                See Student Progress
               </Link>
             </div>
           </div>
@@ -203,10 +219,10 @@ export function ReviewRoute() {
               Review status
             </p>
             <div className="mt-4 font-heading text-3xl font-bold tracking-[-0.05em] text-ink">
-              {engineReview ? 'Deep reviewed locally' : 'Instant report ready'}
+              {engineReview ? 'Detailed review ready' : 'Game summary ready'}
             </div>
             <p className="mt-2 text-sm leading-7 text-copy">
-              {progressLabel || 'You can review this game immediately, then add Stockfish depth whenever you want stronger session prep.'}
+              {progressLabel || 'You can read the summary now and add a more detailed pass whenever you want a closer breakdown of the key moments.'}
             </p>
             <div className="mt-5 h-3 overflow-hidden rounded-full bg-white">
               <div
@@ -225,35 +241,34 @@ export function ReviewRoute() {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          label="Player"
+          label="Student"
           value={parsedGame.selectedPlayer}
           description={`Against ${parsedGame.opponent}, from the ${parsedGame.coachedSide} side.`}
         />
         <MetricCard
           label="Result"
           value={parsedGame.outcome}
-          description="Outcome is calculated from the coached side, so the report stays coach-centric."
+          description="Shown from the student's side of the board."
         />
         <MetricCard
-          label="Review Mode"
-          value={report?.generatedFrom === 'deep' ? 'Deep' : 'Instant'}
-          description="Instant uses heuristics only. Deep adds a local Stockfish pass over the student moves."
+          label="Report Type"
+          value={report?.generatedFrom === 'deep' ? 'Detailed' : 'Summary'}
+          description="Start with the clear summary, then add a deeper review if you want a closer look."
         />
         <MetricCard
-          label="Critical Moments"
+          label="Key Moments"
           value={String(report?.criticalMoments.length ?? 0)}
-          description="The positions most worth replaying in the next session."
+          description="The positions most worth replaying and learning from."
         />
       </div>
 
       <div className="print-hidden mt-6 flex gap-3 overflow-x-auto pb-1">
         {[
           ['#review-board', 'Board'],
-          ['#review-fingerprint', 'Fingerprint'],
-          ['#review-moments', 'Critical moments'],
-          ['#review-training', 'Training'],
-          ['#review-session', 'Session prep'],
-          ['#review-diagnostics', 'Diagnostics'],
+          ['#review-fingerprint', 'Playing style'],
+          ['#review-moments', 'Key moments'],
+          ['#review-training', 'Practice plan'],
+          ['#review-session', 'Lesson notes'],
         ].map(([href, label]) => (
           <a key={href} href={href} className="metric-chip whitespace-nowrap">
             <Radar className="h-3.5 w-3.5" />
@@ -265,9 +280,9 @@ export function ReviewRoute() {
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <SectionCard
           id="review-board"
-          eyebrow="Board Playback"
+          eyebrow="Replay The Game"
           title={`${game.title} move by move`}
-          description={parsedGame.eventSummary || 'Replay the game, then jump straight into the most instructive moments.'}
+          description={parsedGame.eventSummary || 'Replay the game, then jump straight to the moments that mattered most.'}
         >
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
             <BoardPreview
@@ -282,7 +297,7 @@ export function ReviewRoute() {
         <SectionCard
           eyebrow="Current Position"
           title={currentMove ? `Move ${currentMove.moveNumber} ${currentMove.san}` : 'Start position'}
-          description="Use this panel as the coaching lens while you scrub the move list."
+          description="Use this panel to understand why the current position matters."
         >
           {currentMove ? (
             <div className="grid gap-4">
@@ -300,28 +315,28 @@ export function ReviewRoute() {
               {selectedEngineMove ? (
                 <div className="rounded-[1.5rem] border border-line bg-white p-5">
                   <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                    Engine verdict
+                    Detailed review note
                   </p>
                   <div className="mt-4 flex flex-wrap gap-3">
                     <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] ${severityClasses(selectedEngineMove.classification)}`}>
                       {prettySeverity(selectedEngineMove.classification)}
                     </span>
-                    <span className="metric-chip">{selectedEngineMove.cpl} CPL</span>
-                    <span className="metric-chip">Best move {selectedEngineMove.bestMove}</span>
+                    <span className="metric-chip">Swing {selectedEngineMove.cpl}</span>
+                    <span className="metric-chip">Better move {selectedEngineMove.bestMove}</span>
                   </div>
                   <p className="mt-3 text-sm leading-7 text-copy">
                     {selectedEngineMove.bestLine.length
-                      ? `Suggested continuation: ${selectedEngineMove.bestLine.slice(0, 6).join(' ')}`
-                      : 'No principal variation was captured for this move.'}
+                      ? `A stronger line to explore is ${selectedEngineMove.bestLine.slice(0, 6).join(' ')}.`
+                      : 'This deeper review marks the moment as important even without a suggested line.'}
                   </p>
                 </div>
               ) : (
                 <div className="rounded-[1.5rem] border border-line bg-white p-5">
                   <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                    Coaching note
+                    Helpful note
                   </p>
                   <p className="mt-4 text-sm leading-7 text-copy">
-                    Select a move after the deep review if you want centipawn loss and best-line guidance here. The instant report still surfaces the key coaching themes below.
+                    Add a detailed review if you want this panel to suggest a stronger move and show a clearer alternative line.
                   </p>
                 </div>
               )}
@@ -349,7 +364,7 @@ export function ReviewRoute() {
           <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <SectionCard
               id="review-fingerprint"
-              eyebrow="Style Fingerprint"
+              eyebrow="Playing Style"
               title={report.styleFingerprint.archetype}
               description={report.styleFingerprint.summary}
             >
@@ -360,7 +375,7 @@ export function ReviewRoute() {
               </div>
               <div className="mt-6 rounded-[1.5rem] border border-line bg-ivory/80 p-5">
                 <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                  Coach hook
+                  Why this matters
                 </p>
                 <p className="mt-3 text-sm leading-7 text-copy">{report.styleFingerprint.coachHook}</p>
                 <div className="mt-4 flex flex-wrap gap-3">
@@ -374,9 +389,9 @@ export function ReviewRoute() {
             </SectionCard>
 
             <SectionCard
-              eyebrow="Phase Scores"
-              title="Where the game holds up and where it leaks"
-              description="These bars turn the report into a fast session-prep view."
+              eyebrow="Game Flow"
+              title="Where the game felt strongest and where it got harder"
+              description="This turns the review into a quick view of where the student looked comfortable and where the position started to slip."
             >
               <div className="grid gap-4">
                 {report.phaseScores.map((phase) => (
@@ -400,7 +415,7 @@ export function ReviewRoute() {
                       />
                     </div>
                     <p className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-copy/70">
-                      Based on {phase.basis}
+                      Built from {phase.basis === 'engine' ? 'the detailed review' : 'the game summary'}
                     </p>
                   </div>
                 ))}
@@ -410,14 +425,14 @@ export function ReviewRoute() {
 
           <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <SectionCard
-              eyebrow="Strengths And Leaks"
-              title="What to preserve and what to train directly"
-              description="This is the heart of the coaching report. The left side protects identity; the right side narrows the next training targets."
+              eyebrow="Strengths And Targets"
+              title="What to keep and what to improve"
+              description="This is the heart of the review: what is already working, and what should get the next block of attention."
             >
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-[1.5rem] border border-line bg-mint-soft/70 p-5">
                   <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                    Strengths
+                    Doing well
                   </p>
                   <div className="mt-4 grid gap-4">
                     {report.strengths.map((item) => (
@@ -433,7 +448,7 @@ export function ReviewRoute() {
 
                 <div className="rounded-[1.5rem] border border-line bg-saffron-soft/70 p-5">
                   <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                    Leaks
+                    Working on next
                   </p>
                   <div className="mt-4 grid gap-4">
                     {report.leaks.map((item) => (
@@ -451,9 +466,9 @@ export function ReviewRoute() {
 
             <SectionCard
               id="review-moments"
-              eyebrow="Critical Moments"
-              title="The positions worth replaying in the next session"
-              description="These become your teaching positions, homework prompts, and follow-up references."
+              eyebrow="Key Moments"
+              title="The positions worth replaying"
+              description="These are the moments most worth revisiting in the next lesson or practice session."
             >
               <div className="grid gap-4">
                 {report.criticalMoments.map((moment) => (
@@ -483,9 +498,9 @@ export function ReviewRoute() {
           <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <SectionCard
               id="review-training"
-              eyebrow="Training Plan"
-              title="Turn the game into next-week work"
-              description="Each block exists to make the student stronger in their real style, not to overwrite it."
+              eyebrow="Practice Plan"
+              title="Turn this game into next week's work"
+              description="Each block is there to make the student stronger without flattening their natural style."
             >
               <div className="grid gap-4">
                 {report.trainingPlan.map((block) => (
@@ -495,7 +510,7 @@ export function ReviewRoute() {
                     </h3>
                     <p className="mt-2 text-sm leading-7 text-copy">{block.why}</p>
                     <p className="mt-4 text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                      Drill stack
+                      Practice ideas
                     </p>
                     <ul className="mt-3 grid gap-2 text-sm leading-7 text-copy">
                       {block.drills.map((drill) => (
@@ -512,9 +527,9 @@ export function ReviewRoute() {
 
             <SectionCard
               id="review-session"
-              eyebrow="Session Prep"
-              title="Coach-facing agenda and handoff"
-              description="This is the compact prep sheet you can use before, during, and after the lesson."
+              eyebrow="Lesson Notes"
+              title="A simple outline for the next lesson"
+              description="Use this as a clear handoff between this game, the next lesson, and the week's follow-up."
             >
               <div className="rounded-[1.5rem] border border-line bg-ivory/80 p-5">
                 <div className="grid gap-4">
@@ -535,7 +550,7 @@ export function ReviewRoute() {
                 </div>
                 <div className="mt-5 rounded-[1.25rem] bg-white p-4">
                   <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                    Action checklist
+                    Checklist
                   </p>
                   <ul className="mt-3 grid gap-2 text-sm leading-7 text-copy">
                     {report.actionChecklist.map((item) => (
@@ -548,47 +563,12 @@ export function ReviewRoute() {
               </div>
             </SectionCard>
           </div>
-
-          <SectionCard
-            id="review-diagnostics"
-            eyebrow="Diagnostics"
-            title="The implementation trail"
-            description="Useful for portfolio storytelling and for proving the app is not relying on paid APIs."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-[1.5rem] border border-line bg-white p-5">
-                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                  Report diagnostics
-                </p>
-                <ul className="mt-4 grid gap-2 text-sm leading-7 text-copy">
-                  {report.diagnostic.map((item) => (
-                    <li key={item} className="rounded-2xl bg-ivory px-4 py-3">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-[1.5rem] border border-line bg-white p-5">
-                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                  Engineering notes
-                </p>
-                <ul className="mt-4 grid gap-2 text-sm leading-7 text-copy">
-                  <li className="rounded-2xl bg-ivory px-4 py-3">PGN parsing runs locally with chess.js.</li>
-                  <li className="rounded-2xl bg-ivory px-4 py-3">Reports are persisted in IndexedDB through Dexie.</li>
-                  <li className="rounded-2xl bg-ivory px-4 py-3">Deep review uses bundled Stockfish WASM in a web worker.</li>
-                  <li className="rounded-2xl bg-ivory px-4 py-3">
-                    No paid API is required for report creation, review, or export.
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </SectionCard>
         </>
       ) : null}
 
       <div className="print-hidden mt-6">
         <Link className="ghost-button" to="/">
-          Back To Dashboard
+          Back Home
         </Link>
       </div>
     </div>

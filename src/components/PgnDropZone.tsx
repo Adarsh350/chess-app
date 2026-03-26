@@ -44,10 +44,10 @@ export function PgnDropZone({ value, onChange, onLoadDemo }: PgnDropZoneProps) {
             </div>
             <div>
               <h3 className="font-heading text-xl font-bold tracking-[-0.03em] text-ink">
-                Drop a PGN file or paste directly below
+                Drop a PGN file or paste the game below
               </h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-copy">
-                Imports stay local to this device. The report is generated offline and can be deep-reviewed with bundled Stockfish.
+                You can upload a saved PGN file or paste the moves directly. The game review is created right here in the app.
               </p>
             </div>
           </div>
@@ -58,7 +58,7 @@ export function PgnDropZone({ value, onChange, onLoadDemo }: PgnDropZoneProps) {
             </button>
             <button type="button" className="brand-button" onClick={onLoadDemo}>
               <Sparkles className="mr-2 h-4 w-4" />
-              Load demo PGN
+              Use sample PGN
             </button>
           </div>
         </div>
@@ -79,7 +79,7 @@ export function PgnDropZone({ value, onChange, onLoadDemo }: PgnDropZoneProps) {
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="[Event &quot;Offline review&quot;]&#10;1. d4 d5 2. c4 ..."
+        placeholder="[Event &quot;Training game&quot;]&#10;1. e4 e5 2. Nf3 ..."
         className="min-h-[18rem] rounded-[1.75rem] border border-line bg-white p-5 text-sm leading-7 text-ink shadow-[0_24px_50px_-40px_rgba(18,36,24,0.18)] outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
       />
     </div>

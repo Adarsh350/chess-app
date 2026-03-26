@@ -1,13 +1,13 @@
 export const demoStudent = {
   id: 'demo-samaritan963',
   name: 'Samaritan963',
-  tagline: 'Strength-first competitive coaching demo',
+  tagline: 'A sample student profile showing how progress can stay clear from game to game.',
   focusStatement:
     'A 1:1 chess student whose natural game leans dynamic and active. The coaching job is to sharpen initiative without losing structure.',
   goals: [
-    'Turn style identification into a repeatable opening and middlegame plan',
-    'Convert practical edges more cleanly in rapid games',
-    'Reduce avoidable decision-quality swings when the position sharpens',
+    'Understand what kind of positions fit my style best',
+    'Convert good positions more calmly in rapid games',
+    'Make fewer rushed decisions when the game gets sharp',
   ],
 }
 

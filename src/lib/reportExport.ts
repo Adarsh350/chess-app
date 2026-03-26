@@ -8,14 +8,14 @@ export function buildReportMarkdown(student: StoredStudent, game: StoredGame, re
   return [
     `# ${student.name} - ${game.title}`,
     '',
-    `Generated from: ${report.generatedFrom}`,
+    `Report type: ${report.generatedFrom === 'deep' ? 'Detailed review' : 'Game summary'}`,
     '',
     report.headline,
     '',
     report.executiveSummary,
     '',
     section(
-      'Style Fingerprint',
+      'Playing Style',
       report.styleFingerprint.meters.map(
         (meter) => `- **${meter.label} (${meter.score})**: ${meter.note}`,
       ),
@@ -25,18 +25,18 @@ export function buildReportMarkdown(student: StoredStudent, game: StoredGame, re
       report.strengths.map((item) => `- **${item.title}**: ${item.detail}`),
     ),
     section(
-      'Leaks',
+      'Training Focus',
       report.leaks.map((item) => `- **${item.title}**: ${item.detail}`),
     ),
     section(
-      'Training Plan',
+      'Practice Plan',
       report.trainingPlan.map(
         (block) =>
           `- **${block.title}**: ${block.why}\n  Target: ${block.target}\n  Drills: ${block.drills.join('; ')}`,
       ),
     ),
     section(
-      'Session Agenda',
+      'Lesson Notes',
       report.sessionAgenda.map((item) => `- **${item.title}**: ${item.detail}`),
     ),
     section(

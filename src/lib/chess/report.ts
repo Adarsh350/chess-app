@@ -9,13 +9,13 @@ export function buildInstantReport(game: ParsedGame): CoachingReport {
   return {
     headline:
       game.outcome === 'win'
-        ? `A ${styleFingerprint.archetype.toLowerCase()} win built on pressure and direction`
-        : `A ${styleFingerprint.archetype.toLowerCase()} game that shows exactly where the next jump comes from`,
+        ? `A ${styleFingerprint.archetype.toLowerCase()} win with clear momentum`
+        : `A ${styleFingerprint.archetype.toLowerCase()} game with a clear lesson for the next step`,
     oneLiner:
       game.outcome === 'win'
         ? 'This game shows why your style works: you create practical pressure early and give the opponent real problems to solve.'
-        : 'This game is valuable because it exposes the exact point where your natural style needs stronger structure and cleaner decision filters.',
-    executiveSummary: `${game.selectedPlayer} is not a generic improver. The current shape of the game already points toward ${styleFingerprint.archetype.toLowerCase()}. The coaching opportunity is to preserve that identity while cleaning up the one or two decision points that keep the position from becoming easier to win.`,
+        : 'This game is helpful because it shows the exact moment where a calmer choice or a clearer plan would have made the position easier to handle.',
+    executiveSummary: `${game.selectedPlayer}'s games already point toward a ${styleFingerprint.archetype.toLowerCase()} style. The goal is to keep that identity, while tightening the one or two decisions that would make future games steadier and easier to convert.`,
     styleFingerprint,
     strengths: buildStrengths(game, metrics),
     leaks,
@@ -26,17 +26,17 @@ export function buildInstantReport(game: ParsedGame): CoachingReport {
     actionChecklist: buildActionChecklist(metrics, leaks),
     criticalMoments: buildHeuristicCriticalMoments(game),
     diagnostic: [
-      `Opening family: ${game.opening}`,
-      `Style signal: ${styleFingerprint.archetype}`,
-      `Outcome from the coached side: ${game.outcome}`,
-      'Generated without paid APIs using PGN structure and style heuristics',
+      `Opening: ${game.opening}`,
+      `Style read: ${styleFingerprint.archetype}`,
+      `Result from the student's side: ${game.outcome}`,
+      'Built from the move pattern and structure of this game.',
     ],
     generatedFrom: 'instant',
   }
 }
 
 function deepPhaseSummary(phase: EngineReviewSnapshot['phaseScores'][number]) {
-  return `${phase.phase[0]!.toUpperCase()}${phase.phase.slice(1)} engine score ${phase.score}/100: ${phase.caption}`
+  return `${phase.phase[0]!.toUpperCase()}${phase.phase.slice(1)} detailed review score ${phase.score}/100: ${phase.caption}`
 }
 
 export function buildDeepReport(game: ParsedGame, snapshot: EngineReviewSnapshot): CoachingReport {
@@ -46,20 +46,20 @@ export function buildDeepReport(game: ParsedGame, snapshot: EngineReviewSnapshot
 
   return {
     ...base,
-    headline: `Deep review: ${base.headline}`,
-    oneLiner: `${base.oneLiner} The local Stockfish pass puts concrete numbers behind the coaching priorities.`,
-    executiveSummary: `${base.executiveSummary} The engine review validates that the real gains are phase-specific, not generic. Build the next training block around the ${weakest?.phase ?? 'middlegame'} while protecting the strengths that already show up in the ${strongest?.phase ?? 'opening'}.`,
+    headline: `Detailed review: ${base.headline}`,
+    oneLiner: `${base.oneLiner} The closer review makes the biggest turning points easier to see.`,
+    executiveSummary: `${base.executiveSummary} The closer review shows that the biggest gains will come from the ${weakest?.phase ?? 'middlegame'}, while the ${strongest?.phase ?? 'opening'} remains the phase to keep building on with confidence.`,
     strengths: [
       {
-        title: `Your best engine-tested phase is the ${strongest?.phase ?? 'opening'}`,
-        detail: `At depth ${snapshot.depth}, the review holds up best in the ${strongest?.phase ?? 'opening'}. That phase is the anchor point to build your weekly training around rather than starting from weakness only.`,
+        title: `Your strongest phase in this detailed review is the ${strongest?.phase ?? 'opening'}`,
+        detail: `The game held together best in the ${strongest?.phase ?? 'opening'}. That phase is the right anchor point to keep building confidence around while the weaker phase gets extra attention.`,
       },
       ...base.strengths.slice(1),
     ],
     leaks: [
       {
-        title: `The engine flags the ${weakest?.phase ?? 'middlegame'} as the first serious training target`,
-        detail: 'This is where the centipawn loss accumulates fastest. The right coaching response is not more theory everywhere, but more disciplined decision-making in that exact phase.',
+        title: `The ${weakest?.phase ?? 'middlegame'} is the first serious training target`,
+        detail: 'This is where the game started to get harder to control. The best response is not more theory everywhere, but calmer decision-making in that exact phase.',
       },
       ...base.leaks.slice(1),
     ],
@@ -67,7 +67,7 @@ export function buildDeepReport(game: ParsedGame, snapshot: EngineReviewSnapshot
     criticalMoments: snapshot.criticalMoments,
     diagnostic: [
       ...base.diagnostic,
-      `Average centipawn loss: ${snapshot.averageCpl}`,
+      `Average swing in the detailed review: ${snapshot.averageCpl}`,
       ...snapshot.phaseScores.map(deepPhaseSummary),
       ...snapshot.diagnostic,
     ],
