@@ -172,6 +172,10 @@ function archetypeFromMetrics(metrics: StyleMetrics) {
   return 'Flexible improving player'
 }
 
+function withArticle(phrase: string) {
+  return `${/^[aeiou]/i.test(phrase) ? 'an' : 'a'} ${phrase}`
+}
+
 export function buildStyleFingerprint(metrics: StyleMetrics): StyleFingerprint {
   const archetype = archetypeFromMetrics(metrics)
   const openingLean =
@@ -365,7 +369,7 @@ export function buildSessionAgenda(game: ParsedGame, metrics: StyleMetrics): Ses
   return [
     {
       title: 'Style map',
-      detail: `Name the version of your game that already works. For this sample, it looks most like a ${archetypeFromMetrics(metrics).toLowerCase()}.`,
+      detail: `Name the version of your game that already works. For this sample, it looks most like ${withArticle(archetypeFromMetrics(metrics).toLowerCase())}.`,
     },
     {
       title: 'Point of no return',

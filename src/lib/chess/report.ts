@@ -1,21 +1,27 @@
 import type { CoachingReport, EngineReviewSnapshot, ParsedGame } from '../../types/coaching'
 import { buildActionChecklist, buildHeuristicCriticalMoments, buildHeuristicPhaseScores, buildLeaks, buildSessionAgenda, buildStrengths, buildStyleFingerprint, buildTrainingPlan, deriveStyleMetrics } from './heuristics'
 
+function withArticle(phrase: string, capitalize = false) {
+  const article = /^[aeiou]/i.test(phrase) ? 'an' : 'a'
+  return `${capitalize ? article[0]!.toUpperCase() + article.slice(1) : article} ${phrase}`
+}
+
 export function buildInstantReport(game: ParsedGame): CoachingReport {
   const metrics = deriveStyleMetrics(game)
   const styleFingerprint = buildStyleFingerprint(metrics)
   const leaks = buildLeaks(game, metrics)
+  const styleLabel = styleFingerprint.archetype.toLowerCase()
 
   return {
     headline:
       game.outcome === 'win'
-        ? `A ${styleFingerprint.archetype.toLowerCase()} win with clear momentum`
-        : `A ${styleFingerprint.archetype.toLowerCase()} game with a clear lesson for the next step`,
+        ? `${withArticle(styleLabel, true)} win with clear momentum`
+        : `${withArticle(styleLabel, true)} game with a clear lesson for the next step`,
     oneLiner:
       game.outcome === 'win'
         ? 'This game shows why your style works: you create practical pressure early and give the opponent real problems to solve.'
         : 'This game is helpful because it shows the exact moment where a calmer choice or a clearer plan would have made the position easier to handle.',
-    executiveSummary: `${game.selectedPlayer}'s games already point toward a ${styleFingerprint.archetype.toLowerCase()} style. The goal is to keep that identity, while tightening the one or two decisions that would make future games steadier and easier to convert.`,
+    executiveSummary: `${game.selectedPlayer}'s games already point toward ${withArticle(styleLabel)} style. The goal is to keep that identity, while tightening the one or two decisions that would make future games steadier and easier to convert.`,
     styleFingerprint,
     strengths: buildStrengths(game, metrics),
     leaks,
