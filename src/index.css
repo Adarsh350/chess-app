@@ -98,6 +98,7 @@ button {
 
   .primary-button {
     @apply inline-flex items-center justify-center rounded-xl border border-[#2c7148]/15 bg-[#2f7a4c] px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_24px_-18px_rgba(31,93,56,0.55)] transition-colors duration-200 hover:bg-[#286943] focus:outline-none focus:ring-4 focus:ring-mint-soft disabled:cursor-not-allowed disabled:bg-[#2f7a4c]/60;
+    color: white;
   }
 
   .secondary-button {
@@ -110,6 +111,13 @@ button {
 
   .brand-button {
     @apply inline-flex items-center justify-center rounded-xl border border-[#2c7148]/15 bg-[#2f7a4c] px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_24px_-18px_rgba(31,93,56,0.55)] transition-colors duration-200 hover:bg-[#286943] focus:outline-none focus:ring-4 focus:ring-mint-soft disabled:cursor-not-allowed disabled:bg-[#2f7a4c]/60;
+    color: white;
+  }
+
+  .primary-button *,
+  .brand-button * {
+    color: white;
+    stroke: currentColor;
   }
 
   .ghost-button {
