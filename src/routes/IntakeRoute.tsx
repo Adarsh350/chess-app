@@ -1,21 +1,15 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useDeferredValue, useEffect, useState, useTransition } from 'react'
-import {
-  AlertCircle,
-  ArrowRight,
-  CheckCircle2,
-  ClipboardList,
-  Search,
-  Sparkles,
-  UserPlus2,
-  Users,
-} from 'lucide-react'
+import { AlertCircle, ArrowRight, CheckCircle2, Search, Sparkles, Users } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { EmptyState } from '../components/EmptyState'
+import { PageHeader } from '../components/PageHeader'
 import { PgnDropZone } from '../components/PgnDropZone'
-import { SectionCard } from '../components/SectionCard'
 import { demoGames, demoStudent } from '../data/seeds'
 import { parseGame } from '../lib/chess/pgn'
 import { db, upsertImportedGame } from '../lib/db'
+import { reviewReplayPath, studentEditPath } from '../lib/routes'
+import { visibleStudents } from '../lib/workspace'
 import type { ParsedGame, PlayerSide, StoredStudent } from '../types/coaching'
 
 function normalizeGoals(value: string) {
@@ -34,7 +28,7 @@ function blankGoalsText() {
 }
 
 function formatStudentType(student: StoredStudent) {
-  return student.kind === 'seeded' ? 'Sample data' : 'Student profile'
+  return student.kind === 'seeded' ? 'Sample' : 'Student'
 }
 
 export function IntakeRoute() {
@@ -42,7 +36,11 @@ export function IntakeRoute() {
   const [searchParams] = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const students = useLiveQuery(() => db.students.orderBy('updatedAt').reverse().toArray(), [])
-  const activeStudents = (students ?? []).filter((student) => student.archivedAt === null)
+  const allActiveStudents = (students ?? []).filter((student) => student.archivedAt === null)
+  const activeStudents = visibleStudents(
+    allActiveStudents,
+    false,
+  )
   const [studentMode, setStudentMode] = useState<'existing' | 'new'>(
     searchParams.get('studentId') ? 'existing' : activeStudents.length ? 'existing' : 'new',
   )
@@ -131,9 +129,12 @@ export function IntakeRoute() {
       return
     }
 
-    const sampleStudent = activeStudents.find((student) => student.id === demoStudent.id)
+    const sampleStudent = allActiveStudents.find((student) => student.id === demoStudent.id)
 
-    if (sampleStudent) {
+    if (studentMode === 'existing' && selectedStudent) {
+      setFocusStatement(selectedStudent.focusStatement)
+      setGoalsText(selectedStudent.goals.join('\n'))
+    } else if (sampleStudent) {
       switchToExistingMode(sampleStudent.id)
       setFocusStatement(sampleStudent.focusStatement)
       setGoalsText(sampleStudent.goals.join('\n'))
@@ -177,7 +178,7 @@ export function IntakeRoute() {
       })
 
       startTransition(() => {
-        navigate(`/review/${result.gameId}`)
+        navigate(reviewReplayPath(result.gameId))
       })
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'The game could not be saved.')
@@ -187,89 +188,48 @@ export function IntakeRoute() {
   const moveCount = preview ? Math.ceil(preview.moves.length / 2) : 0
 
   return (
-    <div className="px-5 py-8 sm:px-7 sm:py-10">
-      <section className="soft-panel overflow-hidden p-8 sm:p-10">
-        <p className="section-label">Upload A Game</p>
-        <div className="mt-4 grid gap-8 xl:grid-cols-[minmax(0,1.1fr)_minmax(19rem,0.9fr)] xl:items-end">
-          <div>
-            <h1 className="max-w-4xl font-heading text-4xl font-bold tracking-[-0.06em] text-ink sm:text-6xl">
-              Put the right game inside the right student profile.
-            </h1>
-            <p className="mt-5 max-w-3xl text-base leading-8 text-copy sm:text-lg">
-              Choose an existing student or create a new one on the spot. Each game stays attached to that student, so you can build a clean coaching history over time.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <button type="button" className="brand-button" onClick={loadDemo}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Use Sample Game
-              </button>
-              <Link className="ghost-button" to="/students">
-                <Users className="mr-2 h-4 w-4" />
-                Manage Students
-              </Link>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Import"
+        title="Create one clean review from one clean PGN import."
+        description="Choose the student first, confirm the side they played, and preview the parsed game before the review is saved."
+        meta={
+          <>
+            <span className="inline-meta">Step 1: Choose student</span>
+            <span className="inline-meta">Step 2: Add PGN</span>
+            <span className="inline-meta">Step 3: Create review</span>
+          </>
+        }
+        actions={
+          <>
+            <button type="button" className="secondary-button" onClick={loadDemo}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Load sample
+            </button>
+            <Link className="secondary-button" to="/students">
+              <Users className="mr-2 h-4 w-4" />
+              Students
+            </Link>
+          </>
+        }
+      />
 
-          <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
-            {[
-              {
-                icon: Users,
-                title: 'Choose The Student',
-                body: 'Attach the new game to an existing profile so each student keeps a clean review history.',
-              },
-              {
-                icon: UserPlus2,
-                title: 'Create A New Profile',
-                body: 'If this is someone new, make the profile right here and start their coaching history with the first upload.',
-              },
-              {
-                icon: ClipboardList,
-                title: 'Save A Clear Review',
-                body: 'The game turns into a summary, key moments, and next steps that live inside that student profile.',
-              },
-            ].map((item) => (
-              <div key={item.title} className="panel p-5">
-                <item.icon className="h-5 w-5 text-forest" />
-                <h2 className="mt-4 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
-                  {item.title}
-                </h2>
-                <p className="mt-2 text-sm leading-7 text-copy">{item.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
-        <SectionCard
-          eyebrow="Game Details"
-          title="Choose the student and add the game"
-          description="Start by picking an existing student or creating a new profile. Then add the game and save the review."
-        >
-          <div className="grid gap-5">
-            <div className="grid gap-4">
-              <div className="flex flex-wrap gap-3">
+      <div className="split-pane">
+        <section className="workspace-card">
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => switchToExistingMode()}
-                  className={[
-                    'rounded-full px-4 py-2 text-sm font-bold transition',
-                    studentMode === 'existing'
-                      ? 'bg-forest text-white'
-                      : 'bg-white text-ink hover:bg-mint-soft/70',
-                  ].join(' ')}
+                  className={studentMode === 'existing' ? 'primary-button' : 'secondary-button'}
                 >
                   Existing student
                 </button>
                 <button
                   type="button"
                   onClick={switchToNewMode}
-                  className={[
-                    'rounded-full px-4 py-2 text-sm font-bold transition',
-                    studentMode === 'new'
-                      ? 'bg-forest text-white'
-                      : 'bg-white text-ink hover:bg-mint-soft/70',
-                  ].join(' ')}
+                  className={studentMode === 'new' ? 'primary-button' : 'secondary-button'}
                 >
                   New student
                 </button>
@@ -277,14 +237,14 @@ export function IntakeRoute() {
 
               {studentMode === 'existing' ? (
                 activeStudents.length ? (
-                  <div className="grid gap-4">
+                  <div className="space-y-4">
                     <label className="relative block">
                       <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-copy/70" />
                       <input
                         value={studentSearch}
                         onChange={(event) => setStudentSearch(event.target.value)}
                         placeholder="Search students"
-                        className="w-full rounded-[1.25rem] border border-line bg-white py-3 pl-11 pr-4 text-sm text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
+                        className="w-full rounded-xl border border-line bg-white py-3 pl-11 pr-4 text-sm text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
                       />
                     </label>
 
@@ -295,17 +255,17 @@ export function IntakeRoute() {
                           type="button"
                           onClick={() => setSelectedStudentId(student.id)}
                           className={[
-                            'rounded-[1.5rem] border p-4 text-left transition',
+                            'rounded-xl border px-4 py-4 text-left transition-colors duration-200',
                             selectedStudentId === student.id
-                              ? 'border-forest bg-mint-soft/80'
-                              : 'border-line bg-white hover:border-forest/20 hover:bg-mint-soft/50',
+                              ? 'border-forest bg-mint-soft/75'
+                              : 'border-line bg-[#fbfaf6] hover:bg-mint-soft/50',
                           ].join(' ')}
                         >
-                          <div className="flex flex-wrap gap-3">
-                            <span className="metric-chip">{formatStudentType(student)}</span>
-                            <span className="metric-chip">{student.goals.length} goals</span>
+                          <div className="flex flex-wrap gap-2">
+                            <span className="inline-meta">{formatStudentType(student)}</span>
+                            <span className="inline-meta">{student.goals.length} goals</span>
                           </div>
-                          <h3 className="mt-4 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
+                          <h3 className="mt-3 font-heading text-xl font-bold tracking-[-0.03em] text-ink">
                             {student.name}
                           </h3>
                           <p className="mt-2 text-sm leading-7 text-copy">{student.tagline}</p>
@@ -314,33 +274,32 @@ export function IntakeRoute() {
                     </div>
 
                     {selectedStudent ? (
-                      <div className="rounded-[1.5rem] border border-line bg-ivory/80 p-5">
-                        <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
+                      <div className="surface-muted">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-copy/80">
                           Selected student
                         </p>
-                        <h3 className="mt-4 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
+                        <h3 className="mt-3 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
                           {selectedStudent.name}
                         </h3>
                         <p className="mt-2 text-sm leading-7 text-copy">{selectedStudent.focusStatement}</p>
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          {selectedStudent.goals.map((goal) => (
-                            <span key={goal} className="metric-chip">
-                              {goal}
-                            </span>
-                          ))}
-                        </div>
                         <div className="mt-4">
-                          <Link className="ghost-button" to={`/students?edit=${selectedStudent.id}`}>
-                            Edit Student Profile
+                          <Link className="secondary-button" to={studentEditPath(selectedStudent.id)}>
+                            Edit student profile
                           </Link>
                         </div>
                       </div>
                     ) : null}
                   </div>
                 ) : (
-                  <div className="rounded-[1.5rem] border border-dashed border-forest/20 bg-ivory/70 p-6 text-sm leading-7 text-copy">
-                    There are no active students yet. Switch to <strong>New student</strong> or create the first profile from the Students page.
-                  </div>
+                  <EmptyState
+                    title="There are no active students yet."
+                    description="Switch to new student or create the first profile from the student pages."
+                    action={
+                      <button type="button" className="primary-button" onClick={switchToNewMode}>
+                        Switch to new student
+                      </button>
+                    }
+                  />
                 )
               ) : (
                 <div className="grid gap-5">
@@ -350,7 +309,7 @@ export function IntakeRoute() {
                       value={studentName}
                       onChange={(event) => setStudentName(event.target.value)}
                       placeholder="Student name"
-                      className="rounded-[1.25rem] border border-line bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
+                      className="rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
                     />
                   </label>
                 </div>
@@ -364,7 +323,7 @@ export function IntakeRoute() {
                   value={focusStatement}
                   onChange={(event) => setFocusStatement(event.target.value)}
                   placeholder="For example: planning better in the middlegame, finishing attacks, or playing more calmly under pressure."
-                  className="min-h-28 rounded-[1.5rem] border border-line bg-white px-4 py-3 text-sm leading-7 text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
+                  className="min-h-28 rounded-xl border border-line bg-white px-4 py-3 text-sm leading-7 text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
                 />
               </label>
 
@@ -374,25 +333,20 @@ export function IntakeRoute() {
                   value={goalsText}
                   onChange={(event) => setGoalsText(event.target.value)}
                   placeholder="One goal per line"
-                  className="min-h-28 rounded-[1.5rem] border border-line bg-white px-4 py-3 text-sm leading-7 text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
+                  className="min-h-28 rounded-xl border border-line bg-white px-4 py-3 text-sm leading-7 text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
                 />
               </label>
             </div>
 
-            <fieldset className="grid gap-2 text-sm font-semibold text-ink">
-              <legend className="mb-1">Which color did the student play?</legend>
-              <div className="grid grid-cols-2 gap-3">
+            <fieldset className="grid gap-3 text-sm font-semibold text-ink">
+              <legend>Which color did the student play?</legend>
+              <div className="flex flex-wrap gap-2">
                 {(['white', 'black'] as PlayerSide[]).map((side) => (
                   <button
                     key={side}
                     type="button"
                     onClick={() => setCoachedSide(side)}
-                    className={[
-                      'rounded-[1.25rem] border px-4 py-3 text-sm font-bold capitalize transition',
-                      coachedSide === side
-                        ? 'border-forest bg-forest text-white'
-                        : 'border-line bg-white text-ink hover:border-forest/20 hover:bg-mint-soft/60',
-                    ].join(' ')}
+                    className={coachedSide === side ? 'primary-button capitalize' : 'secondary-button capitalize'}
                   >
                     {side}
                   </button>
@@ -403,73 +357,64 @@ export function IntakeRoute() {
             <PgnDropZone value={pgn} onChange={setPgn} onLoadDemo={loadDemo} />
 
             {submitError ? (
-              <div className="rounded-[1.5rem] border border-saffron/40 bg-saffron-soft px-4 py-3 text-sm font-semibold text-ink">
+              <div className="rounded-xl border border-saffron/35 bg-saffron-soft px-4 py-3 text-sm font-semibold text-ink">
                 {submitError}
               </div>
             ) : null}
 
             <div className="flex flex-wrap gap-3">
-              <button type="button" className="brand-button" disabled={isPending} onClick={() => void handleSubmit()}>
-                {isPending ? 'Opening review...' : 'Create Game Review'}
+              <button type="button" className="primary-button" disabled={isPending} onClick={() => void handleSubmit()}>
+                {isPending ? 'Opening review...' : 'Create review'}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </button>
-              <Link className="ghost-button" to="/">
+              <Link className="secondary-button" to="/">
                 Cancel
               </Link>
             </div>
           </div>
-        </SectionCard>
+        </section>
 
-        <SectionCard
-          eyebrow="Preview"
-          title="What we found in this game"
-          description="This helps you confirm the right player, opening, result, and move count before saving the review."
-        >
+        <section className="workspace-card">
+          <p className="section-label">Preview</p>
+          <h2 className="mt-3 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
+            Confirm the parsed game before saving
+          </h2>
+
           {preview ? (
-            <div className="grid gap-4">
-              <div className="rounded-[1.5rem] border border-line bg-ivory/80 p-5">
-                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                  Parsed game
-                </p>
-                <h3 className="mt-4 font-heading text-3xl font-bold tracking-[-0.05em] text-ink">
+            <div className="mt-5 space-y-4">
+              <div className="surface-muted">
+                <div className="flex flex-wrap gap-2">
+                  <span className="inline-meta">{preview.opening}</span>
+                  <span className="inline-meta">{preview.outcome}</span>
+                  <span className="inline-meta">{moveCount} moves</span>
+                </div>
+                <h3 className="mt-3 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
                   {preview.title}
                 </h3>
-                <p className="mt-2 text-sm leading-7 text-copy">{preview.eventSummary || 'Offline import ready for review.'}</p>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <span className="metric-chip">{preview.opening}</span>
-                  <span className="metric-chip">{preview.outcome}</span>
-                  <span className="metric-chip">{moveCount} moves</span>
-                </div>
+                <p className="mt-2 text-sm leading-7 text-copy">
+                  {preview.eventSummary || 'Offline import ready for review.'}
+                </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-[1.5rem] border border-line bg-white p-5">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                    Student
-                  </p>
-                  <div className="mt-4 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
-                    {studentMode === 'existing' ? selectedStudent?.name ?? 'Choose a student' : studentName || 'New student'}
-                  </div>
-                  <p className="mt-2 text-sm leading-7 text-copy">
-                    Reviewing from the {preview.coachedSide} side against {preview.opponent}.
-                  </p>
-                </div>
+              <div className="surface-muted">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-copy/80">Student</p>
+                <p className="mt-2 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
+                  {studentMode === 'existing' ? selectedStudent?.name ?? 'Choose a student' : studentName || 'New student'}
+                </p>
+                <p className="mt-2 text-sm leading-7 text-copy">
+                  Reviewing from the {preview.coachedSide} side against {preview.opponent}.
+                </p>
+              </div>
 
-                <div className="rounded-[1.5rem] border border-line bg-white p-5">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-copy/80">
-                    What happens next
-                  </p>
-                  <div className="mt-4 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
-                    Review saved into the profile
-                  </div>
-                  <p className="mt-2 text-sm leading-7 text-copy">
-                    The app will attach this game to the selected student, then save the summary, key moments, and next steps inside that profile.
-                  </p>
-                </div>
+              <div className="surface-muted">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-copy/80">What happens next</p>
+                <p className="mt-2 text-sm leading-7 text-copy">
+                  The game will be attached to the chosen student, then opened in the replay workspace with the summary already saved.
+                </p>
               </div>
             </div>
           ) : previewError ? (
-            <div className="rounded-[1.5rem] border border-saffron/40 bg-saffron-soft p-5">
+            <div className="mt-5 rounded-xl border border-saffron/35 bg-saffron-soft p-5">
               <div className="flex items-start gap-3">
                 <AlertCircle className="mt-0.5 h-5 w-5 text-saffron" />
                 <div>
@@ -481,19 +426,20 @@ export function IntakeRoute() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4">
-              <div className="rounded-[1.5rem] border border-dashed border-forest/20 bg-ivory/70 p-6">
-                <p className="text-sm leading-7 text-copy">
-                  Paste or drop a PGN to preview the student, opening, result, and move count before saving the review.
-                </p>
-              </div>
-              <div className="rounded-[1.5rem] border border-line bg-white p-5 text-sm leading-7 text-copy">
+            <div className="mt-5 grid gap-4">
+              <EmptyState
+                title="Preview will appear after you add a PGN."
+                description="Paste or drop a PGN to confirm the opening, player, result, and move count before saving the review."
+              />
+              <div className="surface-muted">
                 <CheckCircle2 className="mb-3 h-4 w-4 text-forest" />
-                The review will stay inside the student profile you choose here, so each student builds a separate history over time.
+                <p className="text-sm leading-7 text-copy">
+                  The review will stay inside the student profile you choose here, so each student builds a separate history over time.
+                </p>
               </div>
             </div>
           )}
-        </SectionCard>
+        </section>
       </div>
     </div>
   )

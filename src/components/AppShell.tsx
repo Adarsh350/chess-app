@@ -1,13 +1,15 @@
 import { startTransition, useEffect, useState } from 'react'
-import { CloudOff, ShieldCheck, Upload, Users } from 'lucide-react'
+import { CloudOff, Upload, Users } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { ensureSeedData } from '../lib/db'
+import { importPath } from '../lib/routes'
 import { BrandMark } from './BrandMark'
 
 const navItems = [
-  { to: '/', label: 'Home' },
+  { to: '/', label: 'Today' },
   { to: '/students', label: 'Students' },
-  { to: '/intake', label: 'Upload A Game' },
+  { to: '/import', label: 'Import' },
+  { to: '/reviews', label: 'Reviews' },
 ]
 
 export function AppShell() {
@@ -51,37 +53,29 @@ export function AppShell() {
   }, [])
 
   return (
-    <div className="mx-auto min-h-screen max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8">
-      <div className="panel overflow-hidden">
-        <header className="sticky top-0 z-30 border-b border-line bg-white/90 px-5 py-4 backdrop-blur-md sm:px-7">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="mx-auto min-h-screen max-w-[1560px] px-4 py-4 sm:px-6 lg:px-8">
+      <div className="overflow-hidden rounded-[1.6rem] border border-line bg-white/60 shadow-[0_30px_80px_-56px_rgba(18,36,24,0.22)] backdrop-blur-sm">
+        <header className="sticky top-0 z-30 border-b border-line bg-white/92 px-5 py-4 backdrop-blur-md sm:px-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap items-center gap-4">
-              <BrandMark />
-              <div className="metric-chip">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Clear, personal chess coaching
+              <BrandMark compact />
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-meta">Coach workspace</span>
+                {!isOnline ? <span className="inline-meta"><CloudOff className="h-3.5 w-3.5" /> Offline active</span> : null}
               </div>
-              {!isOnline ? (
-                <div className="metric-chip">
-                  <CloudOff className="h-3.5 w-3.5" />
-                  Offline mode active
-                </div>
-              ) : null}
             </div>
 
-            <div className="flex flex-col gap-4 lg:items-end">
-              <nav className="app-nav flex flex-wrap items-center gap-2 text-sm font-semibold text-copy">
+            <div className="flex flex-col gap-4 xl:items-end">
+              <nav className="app-nav flex flex-wrap gap-2" aria-label="Primary">
                 {navItems.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
+                    end={item.to === '/'}
                     className={({ isActive }) =>
-                      [
-                        'rounded-full px-4 py-2 transition-colors duration-200',
-                        isActive
-                          ? 'bg-mint-soft text-forest'
-                          : 'hover:bg-ivory-deep hover:text-ink',
-                      ].join(' ')
+                      isActive
+                        ? 'subnav-tab is-active'
+                        : 'subnav-tab'
                     }
                   >
                     {item.label}
@@ -90,33 +84,31 @@ export function AppShell() {
               </nav>
 
               <div className="app-actions flex flex-wrap gap-3">
-                <NavLink className="ghost-button" to="/students?new=1">
+                <NavLink className="secondary-button" to="/students/new">
                   <Users className="mr-2 h-4 w-4" />
-                  Create Student
+                  New student
                 </NavLink>
-                <NavLink className="brand-button" to="/intake">
+                <NavLink className="primary-button" to={importPath()}>
                   <Upload className="mr-2 h-4 w-4" />
-                  Upload A Game
+                  Import PGN
                 </NavLink>
               </div>
             </div>
           </div>
         </header>
 
-        <main className="min-h-[calc(100vh-8rem)] bg-transparent">
+        <main className="min-h-[calc(100vh-7rem)] bg-transparent px-5 py-6 sm:px-6 sm:py-7">
           {isReady ? (
             <Outlet />
           ) : (
-            <div className="px-5 py-8 sm:px-7 sm:py-10">
-              <div className="soft-panel p-8">
-                <p className="section-label">Loading</p>
-                <h1 className="mt-4 max-w-3xl font-heading text-4xl font-bold tracking-[-0.05em] text-ink sm:text-6xl">
-                  Getting your coaching space ready.
-                </h1>
-                <p className="mt-4 max-w-2xl text-base text-copy sm:text-lg">
-                  Bringing in your saved games, reports, and progress notes.
-                </p>
-              </div>
+            <div className="page-header">
+              <p className="section-label">Loading</p>
+              <h1 className="mt-4 max-w-3xl font-heading text-4xl font-bold tracking-[-0.05em] text-ink sm:text-5xl">
+                Building your coaching workspace.
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-copy sm:text-base">
+                Pulling in saved students, reviews, and offline analysis so the app is ready to use.
+              </p>
             </div>
           )}
         </main>

@@ -1,59 +1,23 @@
-import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowRight, BookOpenCheck, Plus, Upload, Users } from 'lucide-react'
+import { ArrowRight, Clock3, Eye, EyeOff, Plus, Upload } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { MetricCard } from '../components/MetricCard'
-import { SectionCard } from '../components/SectionCard'
-import { db } from '../lib/db'
-import { summarizeStudent } from '../lib/studentSummary'
-import type { PersistedAnalysis } from '../types/coaching'
-
-function preferredAnalysisByGame(gameIds: string[], analyses: PersistedAnalysis[]) {
-  const map = new Map<string, PersistedAnalysis>()
-
-  for (const gameId of gameIds) {
-    const options = analyses.filter((analysis) => analysis.gameId === gameId)
-    const preferred = options.find((analysis) => analysis.kind === 'deep') ?? options[0]
-    if (preferred) {
-      map.set(gameId, preferred)
-    }
-  }
-
-  return map
-}
-
-function formatRelativeDay(value?: string | null) {
-  if (!value) {
-    return 'No activity yet'
-  }
-
-  return new Date(value).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
+import { EmptyState } from '../components/EmptyState'
+import { PageHeader } from '../components/PageHeader'
+import { importPath, reviewReplayPath, studentOverviewPath } from '../lib/routes'
+import { formatShortDate, preferredAnalysisByGame, reviewPlayerLabelForDisplay, reviewTitleForDisplay, useDemoVisibility, useWorkspaceRecord, visibleGames, visibleStudents } from '../lib/workspace'
 
 export function DashboardRoute() {
-  const record = useLiveQuery(async () => {
-    const [students, games, analyses] = await Promise.all([
-      db.students.orderBy('updatedAt').reverse().toArray(),
-      db.games.orderBy('importedAt').reverse().toArray(),
-      db.analyses.toArray(),
-    ])
-
-    return {
-      students,
-      games,
-      analyses,
-    }
-  }, [])
+  const record = useWorkspaceRecord()
+  const [showDemo, setShowDemo] = useDemoVisibility()
 
   if (!record) {
     return null
   }
 
-  const activeStudents = record.students
-    .filter((student) => student.archivedAt === null)
+  const hasSeededStudents = record.students.some((student) => student.kind === 'seeded')
+  const activeStudents = visibleStudents(
+    record.students.filter((student) => student.archivedAt === null),
+    showDemo,
+  )
     .sort((left, right) => {
       if (left.kind !== right.kind) {
         return left.kind === 'custom' ? -1 : 1
@@ -61,239 +25,225 @@ export function DashboardRoute() {
       return right.updatedAt.localeCompare(left.updatedAt)
     })
   const activeIds = new Set(activeStudents.map((student) => student.id))
-  const activeGames = record.games.filter((game) => activeIds.has(game.studentId))
-  const activeAnalyses = record.analyses.filter((analysis) => activeIds.has(analysis.studentId))
+  const games = visibleGames(record.games, activeIds)
+  const analyses = record.analyses.filter((analysis) => activeIds.has(analysis.studentId))
   const reportByGame = preferredAnalysisByGame(
-    activeGames.map((game) => game.id),
-    activeAnalyses,
+    games.map((game) => game.id),
+    analyses,
   )
-  const studentSummaries = new Map(
-    activeStudents.map((student) => {
-      const games = activeGames.filter((game) => game.studentId === student.id)
-      const analyses = activeAnalyses.filter((analysis) => analysis.studentId === student.id)
-      return [
-        student.id,
-        {
-          summary: summarizeStudent(games, analyses),
-          games,
-          latestActivity: games[0]?.importedAt ?? student.updatedAt,
-        },
-      ]
-    }),
-  )
-  const latestReview = activeGames[0]
-  const latestReviewAnalysis = latestReview ? reportByGame.get(latestReview.id) : null
+  const latestReview = games[0] ?? null
+  const latestReviewStudent = latestReview
+    ? activeStudents.find((student) => student.id === latestReview.studentId) ?? null
+    : null
+  const nextStudent = [...activeStudents].sort((left, right) => {
+    const leftLatest = games.find((game) => game.studentId === left.id)?.importedAt ?? left.updatedAt
+    const rightLatest = games.find((game) => game.studentId === right.id)?.importedAt ?? right.updatedAt
+    return leftLatest.localeCompare(rightLatest)
+  })[0] ?? null
+  const recentActivity = games.slice(0, 6)
 
   return (
-    <div className="px-5 py-8 sm:px-7 sm:py-10">
-      <section className="soft-panel overflow-hidden p-8 sm:p-10">
-        <p className="section-label">Coach Home</p>
-        <div className="mt-4 grid gap-8 xl:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)] xl:items-end">
-          <div>
-            <h1 className="max-w-4xl font-heading text-4xl font-bold tracking-[-0.06em] text-ink sm:text-6xl">
-              Run your coaching from one clean workspace.
-            </h1>
-            <p className="mt-5 max-w-3xl text-base leading-8 text-copy sm:text-lg">
-              Keep every student separate, upload new games into the right profile, and reopen any review when you need the next lesson plan.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link className="brand-button" to="/students?new=1">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Student
-              </Link>
-              <Link className="ghost-button" to="/intake">
-                <Upload className="mr-2 h-4 w-4" />
-                Upload A Game
-              </Link>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Today"
+        title="Run the next coaching move, not a dashboard."
+        description="Pick up the most recent review, open the next student who needs attention, or import the next PGN without digging through crowded pages."
+        meta={
+          <>
+            <span className="inline-meta">{activeStudents.length} active students</span>
+            <span className="inline-meta">{games.length} saved reviews</span>
+          </>
+        }
+        actions={
+          <>
+            {hasSeededStudents ? (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setShowDemo((value) => !value)}
+              >
+                {showDemo ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+                {showDemo ? 'Hide sample data' : 'Show sample data'}
+              </button>
+            ) : null}
+            <Link className="secondary-button" to="/students/new">
+              <Plus className="mr-2 h-4 w-4" />
+              New student
+            </Link>
+            <Link className="primary-button" to={importPath()}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import PGN
+            </Link>
+          </>
+        }
+      />
 
-          <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
-            {[
-              {
-                icon: Users,
-                title: 'Student Profiles',
-                body: 'Each student keeps their own goals, games, and review trail.',
-              },
-              {
-                icon: Upload,
-                title: 'Easy Intake',
-                body: 'Choose the student first, then save the new game into that profile.',
-              },
-              {
-                icon: BookOpenCheck,
-                title: 'Reusable Reviews',
-                body: 'Open older reports any time when you want to compare progress or prep the next lesson.',
-              },
-            ].map((card) => (
-              <div key={card.title} className="panel p-5">
-                <card.icon className="h-5 w-5 text-forest" />
-                <h2 className="mt-4 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
-                  {card.title}
-                </h2>
-                <p className="mt-2 text-sm leading-7 text-copy">{card.body}</p>
+      {!activeStudents.length ? (
+        <EmptyState
+          eyebrow="Coach setup"
+          title="There are no active students yet."
+          description="Create the first student profile, then import a PGN to start a clean review trail. Sample games stay tucked behind the import page unless you choose to show them."
+          action={
+            <Link className="primary-button" to="/students/new">
+              Create first student
+            </Link>
+          }
+        />
+      ) : (
+        <>
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+            <section className="workspace-card">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="section-label">Resume review</p>
+                  <h2 className="mt-3 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
+                    {latestReview && latestReviewStudent
+                      ? reviewTitleForDisplay(latestReview, latestReviewStudent)
+                      : 'No saved review yet'}
+                  </h2>
+                </div>
+                {latestReview ? (
+                  <Link className="primary-button" to={reviewReplayPath(latestReview.id)}>
+                    Open replay
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                ) : null}
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="Active Students"
-          value={String(activeStudents.length)}
-          description="Profiles currently open for coaching and new game uploads."
-        />
-        <MetricCard
-          label="Games Reviewed"
-          value={String(activeGames.length)}
-          description="Saved games attached to active students in the workspace."
-        />
-        <MetricCard
-          label="Detailed Reviews"
-          value={String(activeAnalyses.filter((analysis) => analysis.kind === 'deep').length)}
-          description="Closer move-by-move reviews available across your active students."
-        />
-        <MetricCard
-          label="Latest Review"
-          value={latestReview ? formatRelativeDay(latestReview.importedAt) : 'None yet'}
-          description="The most recent saved game currently in the workspace."
-        />
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
-        <SectionCard
-          eyebrow="Students"
-          title="Your active student list"
-          description="Open a profile, upload another game, or jump straight into student management."
-        >
-          {activeStudents.length ? (
-            <div className="grid gap-4">
-              {activeStudents.map((student) => {
-                const details = studentSummaries.get(student.id)
-                if (!details) {
-                  return null
-                }
-
-                return (
-                  <div
-                    key={student.id}
-                    className="rounded-[1.5rem] border border-line bg-white p-5 transition hover:border-forest/20 hover:bg-mint-soft/60"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
-                        <div className="flex flex-wrap gap-3">
-                          <span className="metric-chip">
-                            {student.kind === 'seeded' ? 'Sample data' : 'Student profile'}
-                          </span>
-                          <span className="metric-chip">{details.games.length} games</span>
-                          <span className="metric-chip">{details.summary.signatureStyle}</span>
-                        </div>
-                        <h3 className="mt-4 font-heading text-3xl font-bold tracking-[-0.05em] text-ink">
-                          {student.name}
-                        </h3>
-                        <p className="mt-2 text-sm leading-7 text-copy">{student.tagline}</p>
-                        <p className="mt-4 text-sm leading-7 text-copy">{student.focusStatement}</p>
-                      </div>
-
-                      <div className="flex flex-wrap gap-3">
-                        <Link className="ghost-button" to={`/students/${student.id}`}>
-                          Open Profile
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                        <Link className="ghost-button" to={`/intake?studentId=${student.id}`}>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Add Game
-                        </Link>
-                      </div>
+              {latestReview ? (
+                <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
+                  <div className="surface-muted">
+                    <div className="flex flex-wrap gap-2">
+                      <span className="inline-meta">
+                        {latestReviewStudent
+                          ? reviewPlayerLabelForDisplay(latestReview, latestReviewStudent)
+                          : latestReview.playerName}
+                      </span>
+                      <span className="inline-meta">{latestReview.opening}</span>
+                      <span className="inline-meta">{formatShortDate(latestReview.importedAt)}</span>
                     </div>
+                    <p className="mt-4 text-sm leading-7 text-copy">
+                      {reportByGame.get(latestReview.id)?.report.oneLiner ??
+                        'The saved summary is ready to reopen.'}
+                    </p>
                   </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="rounded-[1.75rem] border border-dashed border-forest/20 bg-ivory/70 p-6 text-sm leading-7 text-copy">
-              There are no active students yet. Create the first student profile, then upload a game to start building that coaching history.
-            </div>
-          )}
-        </SectionCard>
+                  <div className="surface-muted">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-copy/80">
+                      Report status
+                    </p>
+                    <div className="mt-3 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
+                      {reportByGame.get(latestReview.id)?.kind === 'deep'
+                        ? 'Detailed review ready'
+                        : 'Summary ready'}
+                    </div>
+                    <p className="mt-3 text-sm leading-7 text-copy">
+                      Open replay first, then continue into the insight and plan tabs from the same review.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-4 text-sm leading-7 text-copy">
+                  Import the first PGN and the replay workspace will show up here.
+                </p>
+              )}
+            </section>
 
-        <SectionCard
-          eyebrow="Recent Reviews"
-          title="The last saved games"
-          description="Open the newest reviews quickly when you are getting ready for a lesson."
-        >
-          {activeGames.length ? (
-            <div className="grid gap-4">
-              {activeGames.slice(0, 6).map((game) => {
-                const student = activeStudents.find((entry) => entry.id === game.studentId)
-                const analysis = reportByGame.get(game.id)
+            <section className="workspace-card">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="section-label">Next student</p>
+                  <h2 className="mt-3 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
+                    {nextStudent?.name ?? 'No student selected'}
+                  </h2>
+                </div>
+                {nextStudent ? (
+                  <Link className="secondary-button" to={studentOverviewPath(nextStudent.id)}>
+                    Open profile
+                  </Link>
+                ) : null}
+              </div>
 
-                return (
-                  <Link
-                    key={game.id}
-                    to={`/review/${game.id}`}
-                    className="rounded-[1.5rem] border border-line bg-white p-5 transition hover:border-forest/20 hover:bg-mint-soft/60"
-                  >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <div className="flex flex-wrap gap-3">
-                          <span className="metric-chip">{student?.name ?? 'Student'}</span>
-                          <span className="metric-chip">{game.opening}</span>
+              {nextStudent ? (
+                <div className="mt-5 space-y-4">
+                  <div className="surface-muted">
+                    <p className="text-sm leading-7 text-copy">{nextStudent.focusStatement}</p>
+                  </div>
+
+                  <div className="grid gap-3">
+                    {nextStudent.goals.slice(0, 3).map((goal) => (
+                      <div key={goal} className="rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink">
+                        {goal}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-sm text-copy">
+                    <Clock3 className="h-4 w-4 text-forest" />
+                    Last activity {formatShortDate(games.find((game) => game.studentId === nextStudent.id)?.importedAt ?? nextStudent.updatedAt)}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          </div>
+
+          <section className="table-shell">
+            <div className="flex flex-col gap-3 border-b border-line px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="section-label">Recent activity</p>
+                <h2 className="mt-3 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
+                  The latest saved reviews
+                </h2>
+              </div>
+              <Link className="secondary-button" to="/reviews">
+                See all reviews
+              </Link>
+            </div>
+
+            {recentActivity.length ? (
+              <div className="stack-list px-5 py-4">
+                {recentActivity.map((game) => {
+                  const student = activeStudents.find((entry) => entry.id === game.studentId)
+                  const analysis = reportByGame.get(game.id)
+                  return (
+                    <Link
+                      key={game.id}
+                      to={reviewReplayPath(game.id)}
+                      className="flex flex-col gap-3 rounded-xl border border-line bg-[#fbfaf6] px-4 py-4 transition-colors duration-200 hover:bg-mint-soft/55 lg:flex-row lg:items-center lg:justify-between"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          <span className="inline-meta">{student?.name ?? 'Student'}</span>
+                          <span className="inline-meta">{game.opening}</span>
                         </div>
-                        <h3 className="mt-4 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
-                          {game.title}
+                        <h3 className="font-heading text-xl font-bold tracking-[-0.03em] text-ink">
+                          {student ? reviewTitleForDisplay(game, student) : game.title}
                         </h3>
-                        <p className="mt-2 text-sm leading-7 text-copy">
-                          {analysis?.report.oneLiner ?? 'This game review is ready to open.'}
+                        <p className="text-sm leading-7 text-copy">
+                          {analysis?.report.oneLiner ?? 'This review is ready to open.'}
                         </p>
                       </div>
-                      <div className="rounded-2xl bg-ivory px-4 py-3 text-sm font-semibold text-forest">
-                        {analysis?.kind === 'deep' ? 'Detailed review' : 'Game summary'}
+
+                      <div className="flex flex-col gap-2 text-sm text-copy lg:items-end">
+                        <span className="inline-meta">
+                          {analysis?.kind === 'deep' ? 'Detailed review' : 'Summary'}
+                        </span>
+                        <span>{formatShortDate(game.importedAt)}</span>
                       </div>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="rounded-[1.75rem] border border-dashed border-forest/20 bg-ivory/70 p-6 text-sm leading-7 text-copy">
-              Once you upload a game, the newest reviews will show up here for quick coach access.
-            </div>
-          )}
-
-          <div className="mt-6">
-            <Link className="ghost-button" to="/students">
-              Manage All Students
-            </Link>
-          </div>
-        </SectionCard>
-      </div>
-
-      {latestReview && latestReviewAnalysis ? (
-        <SectionCard
-          eyebrow="Latest Review"
-          title={`${latestReview.playerName} vs ${latestReview.opponentName}`}
-          description="This is the last saved review in the workspace. Open it when you want to continue from the newest game."
-          className="mt-6"
-        >
-          <div className="rounded-[1.5rem] border border-line bg-white p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <div className="flex flex-wrap gap-3">
-                  <span className="metric-chip">{latestReview.opening}</span>
-                  <span className="metric-chip">{latestReviewAnalysis.kind === 'deep' ? 'Detailed review' : 'Game summary'}</span>
-                </div>
-                <p className="mt-4 text-sm leading-7 text-copy">{latestReviewAnalysis.report.executiveSummary}</p>
+                    </Link>
+                  )
+                })}
               </div>
-
-              <Link className="brand-button" to={`/review/${latestReview.id}`}>
-                Open Latest Review
-              </Link>
-            </div>
-          </div>
-        </SectionCard>
-      ) : null}
+            ) : (
+              <div className="px-5 py-5">
+                <EmptyState
+                  title="No review activity yet."
+                  description="Import a PGN and the latest reviews will show up here so you can jump back into the work quickly."
+                />
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </div>
   )
 }

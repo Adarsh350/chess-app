@@ -125,13 +125,14 @@ export function parseGame(pgn: string, coachedSide?: PlayerSide, studentName?: s
 
   const white = headers.White ?? 'White'
   const black = headers.Black ?? 'Black'
-  const selectedPlayer = side === 'white' ? white : black
+  const headerSelectedPlayer = side === 'white' ? white : black
+  const selectedPlayer = studentName?.trim() || headerSelectedPlayer
   const opponent = side === 'white' ? black : white
   const eventBits = [headers.Event, headers.Site, headers.Date].filter(Boolean)
 
   return {
     title: `${selectedPlayer} vs ${opponent}`,
-    eventSummary: eventBits.join(' · '),
+    eventSummary: eventBits.join(' | '),
     headers,
     moves,
     white,

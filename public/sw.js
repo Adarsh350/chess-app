@@ -1,4 +1,4 @@
-const CACHE_NAME = 'deepgame-coaching-os-v4'
+const CACHE_NAME = 'deepgame-coaching-os-v5'
 const ASSET_MANIFEST_URL = '/asset-manifest.json'
 const CORE_ASSETS = [
   '/',
@@ -26,6 +26,25 @@ function normalizeAssetPath(assetPath) {
   }
 
   return assetPath.startsWith('/') ? assetPath : `/${assetPath}`
+}
+
+async function matchCached(cache, request) {
+  const url = new URL(request.url)
+  const candidates = [
+    request,
+    request.url,
+    `${url.pathname}${url.search}`,
+    url.pathname,
+  ]
+
+  for (const candidate of candidates) {
+    const response = await cache.match(candidate)
+    if (response) {
+      return response
+    }
+  }
+
+  return null
 }
 
 async function getBuildAssets() {
@@ -115,7 +134,8 @@ self.addEventListener('fetch', (event) => {
           return response
         })
         .catch(async () => {
-          const cached = await caches.match(request)
+          const cache = await caches.open(CACHE_NAME)
+          const cached = await matchCached(cache, request)
           return cached ?? caches.match('/index.html')
         }),
     )
@@ -123,7 +143,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(request).then(async (cached) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await matchCached(cache, request)
       if (cached) {
         return cached
       }
@@ -132,7 +153,7 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(request)
         if (response.ok) {
           const copy = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
+          cache.put(request, copy)
         }
         return response
       } catch {
