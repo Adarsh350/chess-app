@@ -6,7 +6,7 @@ type ScoreMeterProps = Readonly<{
 
 export function ScoreMeter({ meter }: ScoreMeterProps) {
   return (
-    <div className="rounded-[1.5rem] border border-line bg-ivory/80 p-4">
+    <div className="surface-muted">
       <div className="flex items-end justify-between gap-3">
         <p className="text-sm font-bold text-ink">{meter.label}</p>
         <span className="font-heading text-2xl font-bold tracking-[-0.04em] text-forest">

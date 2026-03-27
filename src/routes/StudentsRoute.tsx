@@ -1,365 +1,93 @@
-import { useLiveQuery } from 'dexie-react-hooks'
-import {
-  Archive,
-  ArrowRight,
-  BookOpenCheck,
-  Plus,
-  RotateCcw,
-  Search,
-  Trash2,
-  Upload,
-  UserCog,
-  Users,
-} from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { MetricCard } from '../components/MetricCard'
-import { SectionCard } from '../components/SectionCard'
-import {
-  archiveStudentProfile,
-  createStudentProfile,
-  db,
-  deleteStudentProfile,
-  restoreStudentProfile,
-  updateStudentProfile,
-} from '../lib/db'
+import { Archive, ArrowRight, Eye, EyeOff, RotateCcw, Search, Trash2, Upload } from 'lucide-react'
+import { useState } from 'react'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { EmptyState } from '../components/EmptyState'
+import { PageHeader } from '../components/PageHeader'
+import { archiveStudentProfile, deleteStudentProfile, restoreStudentProfile } from '../lib/db'
+import { importPath, studentEditPath, studentOverviewPath, studentProgressPath } from '../lib/routes'
+import { formatShortDate, useDemoVisibility, useWorkspaceRecord, visibleStudents } from '../lib/workspace'
 import { summarizeStudent } from '../lib/studentSummary'
-import type { StoredStudent, StudentProfileInput } from '../types/coaching'
+import type { StoredStudent } from '../types/coaching'
 
-function blankStudentForm(): StudentProfileInput {
-  return {
-    name: '',
-    tagline: '',
-    focusStatement: 'This student wants coaching that builds around their natural style and current practical goals.',
-    goals: ['Understand what positions fit my style best', 'Know what to practice before the next lesson'],
-  }
-}
-
-function formFromStudent(student: StoredStudent): StudentProfileInput {
-  return {
-    name: student.name,
-    tagline: student.tagline,
-    focusStatement: student.focusStatement,
-    goals: student.goals,
-  }
-}
-
-function normalizeGoals(value: string) {
-  return value
-    .split(/\r?\n|,/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
-function formatDate(value?: string | null) {
-  if (!value) {
-    return 'No activity yet'
-  }
-
-  return new Date(value).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-type StudentEditorPanelProps = Readonly<{
-  editingStudent: StoredStudent | null
-  isCreating: boolean
-  activationKey: number
-  onBrowseStudents: () => void
-  onClose: () => void
-  onCreated: (studentId: string, message: string) => void
-  onUpdated: (studentId: string, message: string) => void
-}>
-
-function StudentEditorPanel({
-  editingStudent,
-  isCreating,
-  activationKey,
-  onBrowseStudents,
-  onClose,
-  onCreated,
-  onUpdated,
-}: StudentEditorPanelProps) {
-  const nameInputRef = useRef<HTMLInputElement | null>(null)
-  const [form, setForm] = useState<StudentProfileInput>(
-    editingStudent ? formFromStudent(editingStudent) : blankStudentForm(),
-  )
-  const [isSaving, setIsSaving] = useState(false)
-  const [formError, setFormError] = useState('')
-
-  useEffect(() => {
-    if (!(editingStudent || isCreating)) {
-      return
-    }
-
-    const frame = window.requestAnimationFrame(() => {
-      nameInputRef.current?.focus()
-      nameInputRef.current?.select()
-    })
-
-    return () => window.cancelAnimationFrame(frame)
-  }, [activationKey, editingStudent, isCreating])
-
-  async function handleSave() {
-    const trimmedName = form.name.trim()
-    if (!trimmedName) {
-      setFormError('Please add the student name before saving the profile.')
-      return
-    }
-
-    try {
-      setFormError('')
-      setIsSaving(true)
-
-      if (editingStudent) {
-        const savedStudent = await updateStudentProfile(editingStudent.id, {
-          ...form,
-          name: trimmedName,
-          goals: normalizeGoals(form.goals.join('\n')),
-        })
-        onUpdated(savedStudent.id, `${savedStudent.name}'s profile was updated.`)
-        return
-      }
-
-      const savedStudent = await createStudentProfile({
-        ...form,
-        name: trimmedName,
-        goals: normalizeGoals(form.goals.join('\n')),
-      })
-      onCreated(savedStudent.id, `${savedStudent.name}'s profile is ready.`)
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'The student could not be saved.')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  return (
-    <SectionCard
-      id="student-editor"
-      className={
-        editingStudent || isCreating
-          ? 'border-forest/20 shadow-[0_30px_70px_-46px_rgba(25,98,60,0.45)] ring-1 ring-forest/10'
-          : undefined
-      }
-      eyebrow={editingStudent ? 'Edit Student' : isCreating ? 'New Student' : 'Quick Start'}
-      title={
-        editingStudent
-          ? `Update ${editingStudent.name}'s profile`
-          : isCreating
-            ? 'Create a new student profile'
-            : 'Choose what to do next'
-      }
-      description={
-        editingStudent
-          ? 'Change the visible profile details, goals, and coaching focus for this student.'
-          : isCreating
-            ? 'Set up a student once, then keep every future game in the same place.'
-            : 'Open a profile to edit it, or create a new student before you upload the next game.'
-      }
-    >
-      {(editingStudent || isCreating) ? (
-        <div className="grid gap-5">
-          <div className="rounded-[1.5rem] border border-forest/15 bg-mint-soft px-4 py-3 text-sm leading-7 text-forest">
-            {editingStudent
-              ? `You are editing ${editingStudent.name}'s profile now. Update the details below and save when you are ready.`
-              : 'You are creating a new student now. Add the basics below, then save the profile before uploading games.'}
-          </div>
-
-          {formError ? (
-            <div className="rounded-[1.5rem] border border-saffron/40 bg-saffron-soft px-4 py-3 text-sm font-semibold text-ink">
-              {formError}
-            </div>
-          ) : null}
-
-          <label className="grid gap-2 text-sm font-semibold text-ink">
-            Student name
-            <input
-              ref={nameInputRef}
-              value={form.name}
-              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              placeholder="Student name"
-              className="rounded-[1.25rem] border border-line bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
-            />
-          </label>
-
-          <label className="grid gap-2 text-sm font-semibold text-ink">
-            Short tagline
-            <input
-              value={form.tagline}
-              onChange={(event) => setForm((current) => ({ ...current, tagline: event.target.value }))}
-              placeholder="For example: Weekly coaching for tournament prep"
-              className="rounded-[1.25rem] border border-line bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
-            />
-          </label>
-
-          <label className="grid gap-2 text-sm font-semibold text-ink">
-            Current coaching focus
-            <textarea
-              value={form.focusStatement}
-              onChange={(event) => setForm((current) => ({ ...current, focusStatement: event.target.value }))}
-              placeholder="What are you working on with this student right now?"
-              className="min-h-28 rounded-[1.5rem] border border-line bg-white px-4 py-3 text-sm leading-7 text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
-            />
-          </label>
-
-          <label className="grid gap-2 text-sm font-semibold text-ink">
-            Goals
-            <textarea
-              value={form.goals.join('\n')}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, goals: normalizeGoals(event.target.value) }))
-              }
-              placeholder="One goal per line"
-              className="min-h-28 rounded-[1.5rem] border border-line bg-white px-4 py-3 text-sm leading-7 text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
-            />
-          </label>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              className="brand-button"
-              disabled={isSaving}
-              onClick={() => void handleSave()}
-            >
-              {isSaving ? 'Saving...' : editingStudent ? 'Save Profile' : 'Create Student'}
-            </button>
-            <button type="button" className="ghost-button" onClick={onClose}>
-              Close
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          <div className="rounded-[1.5rem] border border-line bg-ivory/80 p-5 text-sm leading-7 text-copy">
-            The simplest workflow is:
-            <br />
-            1. Create the student once.
-            <br />
-            2. Upload new games into that student&apos;s profile.
-            <br />
-            3. Reopen the profile any time to review progress.
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button type="button" className="brand-button" onClick={onBrowseStudents}>
-              Browse Students
-            </button>
-            <Link className="ghost-button" to="/intake">
-              <Upload className="mr-2 h-4 w-4" />
-              Upload A Game
-            </Link>
-          </div>
-        </div>
-      )}
-    </SectionCard>
-  )
-}
+type FilterMode = 'active' | 'archived' | 'all'
 
 export function StudentsRoute() {
-  const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [studentSearch, setStudentSearch] = useState('')
+  const [filterMode, setFilterMode] = useState<FilterMode>('active')
   const [notice, setNotice] = useState('')
   const [actionError, setActionError] = useState('')
-  const [editorActivationKey, setEditorActivationKey] = useState(0)
-  const searchInputRef = useRef<HTMLInputElement | null>(null)
-  const editingStudentId = searchParams.get('edit')
-  const isCreating = searchParams.get('new') === '1'
+  const record = useWorkspaceRecord()
+  const [showDemo, setShowDemo] = useDemoVisibility()
 
-  const record = useLiveQuery(async () => {
-    const [students, games, analyses] = await Promise.all([
-      db.students.orderBy('updatedAt').reverse().toArray(),
-      db.games.orderBy('importedAt').reverse().toArray(),
-      db.analyses.toArray(),
-    ])
-
-    return {
-      students,
-      games,
-      analyses,
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!(isCreating || editingStudentId)) {
-      return
-    }
-
-    const frame = window.requestAnimationFrame(() => {
-      document.getElementById('student-editor')?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      })
-    })
-
-    return () => window.cancelAnimationFrame(frame)
-  }, [editorActivationKey, editingStudentId, isCreating])
+  const legacyEdit = searchParams.get('edit')
+  if (searchParams.get('new') === '1') {
+    return <Navigate to="/students/new" replace />
+  }
+  if (legacyEdit) {
+    return <Navigate to={studentEditPath(legacyEdit)} replace />
+  }
 
   if (!record) {
     return null
   }
 
-  const activeStudents = record.students
-    .filter((student) => student.archivedAt === null)
-    .sort((left, right) => {
-      if (left.kind !== right.kind) {
-        return left.kind === 'custom' ? -1 : 1
-      }
-      return right.updatedAt.localeCompare(left.updatedAt)
-    })
-  const archivedStudents = record.students
-    .filter((student) => student.archivedAt !== null)
-    .sort((left, right) => (right.archivedAt ?? '').localeCompare(left.archivedAt ?? ''))
-  const activeIds = new Set(activeStudents.map((student) => student.id))
-  const activeGames = record.games.filter((game) => activeIds.has(game.studentId))
-  const activeAnalyses = record.analyses.filter((analysis) => activeIds.has(analysis.studentId))
-  const editingStudent = record.students.find((student) => student.id === editingStudentId) ?? null
-  const filteredActiveStudents = activeStudents.filter((student) =>
-    [student.name, student.tagline, student.focusStatement]
-      .join(' ')
-      .toLowerCase()
-      .includes(studentSearch.trim().toLowerCase()),
-  )
+  const hasSeededStudents = record.students.some((student) => student.kind === 'seeded')
+  const visibleRoster = visibleStudents(record.students, showDemo)
   const studentSummaries = new Map(
-    record.students.map((student) => {
+    visibleRoster.map((student) => {
       const games = record.games.filter((game) => game.studentId === student.id)
       const analyses = record.analyses.filter((analysis) => analysis.studentId === student.id)
       return [
         student.id,
         {
-          summary: summarizeStudent(games, analyses),
           games,
+          summary: summarizeStudent(games, analyses),
           latestActivity: games[0]?.importedAt ?? student.updatedAt,
         },
       ]
     }),
   )
 
+  const filteredStudents = visibleRoster
+    .filter((student) => {
+      if (filterMode === 'active' && student.archivedAt !== null) {
+        return false
+      }
+      if (filterMode === 'archived' && student.archivedAt === null) {
+        return false
+      }
+      return [student.name, student.tagline, student.focusStatement]
+        .join(' ')
+        .toLowerCase()
+        .includes(studentSearch.trim().toLowerCase())
+    })
+    .sort((left, right) => {
+      if ((left.archivedAt === null) !== (right.archivedAt === null)) {
+        return left.archivedAt === null ? -1 : 1
+      }
+      if (left.kind !== right.kind) {
+        return left.kind === 'custom' ? -1 : 1
+      }
+      return right.updatedAt.localeCompare(left.updatedAt)
+    })
+
   async function handleArchive(student: StoredStudent) {
-    const actionLabel =
+    const message =
       student.kind === 'seeded'
-        ? 'Hide the sample student from your coach workspace?'
+        ? 'Hide the sample student from the main roster?'
         : `Archive ${student.name}'s profile?`
 
-    if (!window.confirm(actionLabel)) {
+    if (!window.confirm(message)) {
       return
     }
 
     try {
       setActionError('')
       await archiveStudentProfile(student.id)
-      if (editingStudentId === student.id) {
-        setSearchParams({})
-      }
-      setNotice(
-        student.kind === 'seeded'
-          ? 'The sample student is now hidden.'
-          : `${student.name}'s profile is archived.`,
-      )
+      setNotice(student.kind === 'seeded' ? 'Sample student hidden.' : `${student.name} archived.`)
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'The student could not be archived.')
+      setActionError(error instanceof Error ? error.message : 'That profile could not be archived.')
     }
   }
 
@@ -367,16 +95,16 @@ export function StudentsRoute() {
     try {
       setActionError('')
       await restoreStudentProfile(student.id)
-      setNotice(`${student.name}'s profile is active again.`)
+      setNotice(`${student.name} restored to the active roster.`)
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'The student could not be restored.')
+      setActionError(error instanceof Error ? error.message : 'That profile could not be restored.')
     }
   }
 
   async function handleDelete(student: StoredStudent) {
     if (
       !window.confirm(
-        `Delete ${student.name}'s profile and every saved game attached to it? This cannot be undone.`,
+        `Delete ${student.name} and every saved game attached to that profile? This cannot be undone.`,
       )
     ) {
       return
@@ -385,296 +113,186 @@ export function StudentsRoute() {
     try {
       setActionError('')
       await deleteStudentProfile(student.id)
-      if (editingStudentId === student.id) {
-        setSearchParams({})
-      }
-      setNotice(`${student.name}'s profile was deleted.`)
+      setNotice(`${student.name} was deleted.`)
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'The student could not be deleted.')
+      setActionError(error instanceof Error ? error.message : 'That profile could not be deleted.')
     }
   }
 
-  function openNewStudent() {
-    setNotice('')
-    setActionError('')
-    setSearchParams({ new: '1' })
-    setEditorActivationKey((current) => current + 1)
-  }
-
-  function openEditStudent(studentId: string) {
-    setNotice('')
-    setActionError('')
-    setSearchParams({ edit: studentId })
-    setEditorActivationKey((current) => current + 1)
-  }
-
-  function closeEditor() {
-    setActionError('')
-    setSearchParams({})
-  }
-
-  function focusStudentList() {
-    window.requestAnimationFrame(() => {
-      document.getElementById('student-list')?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      })
-      searchInputRef.current?.focus()
-    })
-  }
-
   return (
-    <div className="px-5 py-8 sm:px-7 sm:py-10">
-      <section className="soft-panel overflow-hidden p-8 sm:p-10">
-        <p className="section-label">Coach Workspace</p>
-        <div className="mt-4 grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)] xl:items-end">
-          <div>
-            <h1 className="max-w-4xl font-heading text-4xl font-bold tracking-[-0.06em] text-ink sm:text-6xl">
-              Manage every student from one place.
-            </h1>
-            <p className="mt-5 max-w-3xl text-base leading-8 text-copy sm:text-lg">
-              Create profiles, keep each student&apos;s goals separate, and attach new games to the right person without mixing histories together.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <button type="button" className="brand-button" onClick={openNewStudent}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Student
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Students"
+        title="Keep every student separate and easy to reopen."
+        description="This roster is only for finding, managing, and jumping into the right student. Profile editing lives on its own page, and review work starts from the row actions."
+        meta={
+          <>
+            <span className="inline-meta">{visibleRoster.filter((student) => student.archivedAt === null).length} active</span>
+            <span className="inline-meta">{visibleRoster.filter((student) => student.archivedAt !== null).length} archived</span>
+          </>
+        }
+        actions={
+          <>
+            {hasSeededStudents ? (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setShowDemo((value) => !value)}
+              >
+                {showDemo ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+                {showDemo ? 'Hide sample data' : 'Show sample data'}
               </button>
-              <Link className="ghost-button" to="/intake">
-                <Upload className="mr-2 h-4 w-4" />
-                Upload A Game
-              </Link>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
-            {[
-              {
-                icon: Users,
-                title: 'Separate Profiles',
-                body: 'Every student keeps their own games, goals, and coaching notes.',
-              },
-              {
-                icon: BookOpenCheck,
-                title: 'Clean Histories',
-                body: 'Recent reviews stay attached to the right student, so you are never mixing game trails.',
-              },
-              {
-                icon: UserCog,
-                title: 'Coach Control',
-                body: 'Edit profiles, archive old students, and hide the sample data when you no longer need it.',
-              },
-            ].map((card) => (
-              <div key={card.title} className="panel p-5">
-                <card.icon className="h-5 w-5 text-forest" />
-                <h2 className="mt-4 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
-                  {card.title}
-                </h2>
-                <p className="mt-2 text-sm leading-7 text-copy">{card.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="Active Students"
-          value={String(activeStudents.length)}
-          description="Profiles currently available for new reviews and lesson planning."
-        />
-        <MetricCard
-          label="Archived Students"
-          value={String(archivedStudents.length)}
-          description="Older or hidden profiles you can restore whenever you need them."
-        />
-        <MetricCard
-          label="Games Reviewed"
-          value={String(activeGames.length)}
-          description="Saved games attached to students who are still active in the workspace."
-        />
-        <MetricCard
-          label="Detailed Reviews"
-          value={String(activeAnalyses.filter((analysis) => analysis.kind === 'deep').length)}
-          description="Closer move-by-move reviews available across active students."
-        />
-      </div>
+            ) : null}
+            <Link className="secondary-button" to="/reviews">
+              Reviews
+            </Link>
+            <Link className="primary-button" to="/students/new">
+              New student
+            </Link>
+          </>
+        }
+      />
 
       {(notice || actionError) ? (
-        <div className="mt-6 grid gap-3">
+        <div className="grid gap-3">
           {notice ? (
-            <div className="rounded-[1.5rem] border border-forest/20 bg-mint-soft px-4 py-3 text-sm font-semibold text-forest">
+            <div className="rounded-xl border border-forest/15 bg-mint-soft px-4 py-3 text-sm font-semibold text-forest">
               {notice}
             </div>
           ) : null}
           {actionError ? (
-            <div className="rounded-[1.5rem] border border-saffron/40 bg-saffron-soft px-4 py-3 text-sm font-semibold text-ink">
+            <div className="rounded-xl border border-saffron/35 bg-saffron-soft px-4 py-3 text-sm font-semibold text-ink">
               {actionError}
             </div>
           ) : null}
         </div>
       ) : null}
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
-        <SectionCard
-          id="student-list"
-          eyebrow="Students"
-          title="Your active student list"
-          description="Search, open, and manage each student profile from here."
-        >
-          <div className="grid gap-4">
-            <label className="relative block">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-copy/70" />
-              <input
-                ref={searchInputRef}
-                value={studentSearch}
-                onChange={(event) => setStudentSearch(event.target.value)}
-                placeholder="Search students"
-                className="w-full rounded-[1.25rem] border border-line bg-white py-3 pl-11 pr-4 text-sm text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
-              />
-            </label>
+      <section className="toolbar">
+        <label className="relative block lg:min-w-[20rem]">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-copy/70" />
+          <input
+            value={studentSearch}
+            onChange={(event) => setStudentSearch(event.target.value)}
+            placeholder="Search students"
+            className="w-full rounded-xl border border-line bg-white py-3 pl-11 pr-4 text-sm text-ink outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
+          />
+        </label>
 
-            {filteredActiveStudents.length ? (
-              filteredActiveStudents.map((student) => {
-                const details = studentSummaries.get(student.id)
-                if (!details) {
-                  return null
-                }
+        <div className="flex flex-wrap gap-2">
+          {([
+            ['active', 'Active'],
+            ['archived', 'Archived'],
+            ['all', 'All'],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={filterMode === value ? 'primary-button' : 'secondary-button'}
+              onClick={() => setFilterMode(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
 
-                return (
-                  <div
-                    key={student.id}
-                    className="rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_24px_50px_-40px_rgba(18,36,24,0.18)]"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
-                        <div className="flex flex-wrap gap-3">
-                          <span className="metric-chip">
-                            {student.kind === 'seeded' ? 'Sample data' : 'Student profile'}
-                          </span>
-                          <span className="metric-chip">
-                            Updated {formatDate(details.latestActivity)}
-                          </span>
-                        </div>
-                        <h3 className="mt-4 font-heading text-3xl font-bold tracking-[-0.05em] text-ink">
-                          {student.name}
-                        </h3>
-                        <p className="mt-2 text-sm leading-7 text-copy">{student.tagline}</p>
-                        <p className="mt-4 text-sm leading-7 text-copy">{student.focusStatement}</p>
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          <span className="metric-chip">{details.games.length} games</span>
-                          <span className="metric-chip">{details.summary.deepReviewCount} detailed reviews</span>
-                          <span className="metric-chip">{details.summary.signatureStyle}</span>
-                        </div>
-                        {student.goals.length ? (
-                          <div className="mt-4 flex flex-wrap gap-3">
-                            {student.goals.slice(0, 3).map((goal) => (
-                              <span key={goal} className="metric-chip">
-                                {goal}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <div className="flex flex-wrap gap-3 lg:max-w-[15rem] lg:justify-end">
-                        <Link className="ghost-button" to={`/students/${student.id}`}>
-                          Open Profile
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                        <button
-                          type="button"
-                          className="ghost-button"
-                          onClick={() => navigate(`/intake?studentId=${student.id}`)}
-                        >
-                          <Upload className="mr-2 h-4 w-4" />
-                          Add Game
-                        </button>
-                        <button type="button" className="ghost-button" onClick={() => openEditStudent(student.id)}>
-                          <UserCog className="mr-2 h-4 w-4" />
-                          Edit
-                        </button>
-                        <button type="button" className="ghost-button" onClick={() => void handleArchive(student)}>
-                          <Archive className="mr-2 h-4 w-4" />
-                          {student.kind === 'seeded' ? 'Hide Sample' : 'Archive'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })
-            ) : (
-              <div className="rounded-[1.75rem] border border-dashed border-forest/20 bg-ivory/70 p-6 text-sm leading-7 text-copy">
-                No active students match that search yet. Create a student to start a clean coaching profile.
-              </div>
-            )}
+      {filteredStudents.length ? (
+        <section className="table-shell">
+          <div className="table-header">
+            <span>Student</span>
+            <span>Current focus</span>
+            <span>Games</span>
+            <span>Status</span>
+            <span>Actions</span>
           </div>
 
-          {archivedStudents.length ? (
-            <div className="mt-8">
-              <p className="section-label">Archived Profiles</p>
-              <div className="mt-4 grid gap-4">
-                {archivedStudents.map((student) => {
-                  const details = studentSummaries.get(student.id)
-                  return (
-                    <div key={student.id} className="rounded-[1.5rem] border border-line bg-ivory/80 p-5">
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                          <div className="metric-chip">
-                            Archived {formatDate(student.archivedAt)}
-                          </div>
-                          <h3 className="mt-4 font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
-                            {student.name}
-                          </h3>
-                          <p className="mt-2 text-sm leading-7 text-copy">{student.tagline}</p>
-                          <div className="mt-4 flex flex-wrap gap-3">
-                            <span className="metric-chip">{details?.games.length ?? 0} games</span>
-                            <span className="metric-chip">{details?.summary.deepReviewCount ?? 0} detailed reviews</span>
-                          </div>
-                        </div>
+          {filteredStudents.map((student) => {
+            const details = studentSummaries.get(student.id)
 
-                        <div className="flex flex-wrap gap-3">
-                          <button type="button" className="ghost-button" onClick={() => void handleRestore(student)}>
-                            <RotateCcw className="mr-2 h-4 w-4" />
-                            Restore
-                          </button>
-                          {student.kind === 'custom' ? (
-                            <button type="button" className="ghost-button" onClick={() => void handleDelete(student)}>
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+            if (!details) {
+              return null
+            }
+
+            return (
+              <div key={student.id} className="table-row">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-meta">{student.kind === 'seeded' ? 'Sample' : 'Student'}</span>
+                    <span className="inline-meta">Updated {formatShortDate(details.latestActivity)}</span>
+                  </div>
+                  <h2 className="font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
+                    {student.name}
+                  </h2>
+                  <p className="text-sm leading-7 text-copy">{student.tagline}</p>
+                </div>
+
+                <div className="space-y-2 text-sm leading-7 text-copy">
+                  <p>{student.focusStatement}</p>
+                  <p className="font-semibold text-ink">{details.summary.signatureStyle}</p>
+                </div>
+
+                <div className="text-sm text-copy lg:self-center">
+                  <div className="font-heading text-2xl font-bold tracking-[-0.04em] text-ink">
+                    {details.games.length}
+                  </div>
+                  <div>Saved reviews</div>
+                </div>
+
+                <div className="space-y-2 text-sm text-copy lg:self-center">
+                  <div>{student.archivedAt ? 'Archived' : 'Active'}</div>
+                  <div>{details.summary.deepReviewCount} detailed</div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 lg:flex-col lg:items-stretch">
+                  <Link className="secondary-button" to={studentOverviewPath(student.id)}>
+                    Open
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                  <Link className="secondary-button" to={importPath(student.id)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    New review
+                  </Link>
+                  <Link className="secondary-button" to={studentEditPath(student.id)}>
+                    Edit
+                  </Link>
+                  <Link className="secondary-button" to={studentProgressPath(student.id)}>
+                    Progress
+                  </Link>
+                  {student.archivedAt ? (
+                    <button type="button" className="secondary-button" onClick={() => void handleRestore(student)}>
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Restore
+                    </button>
+                  ) : (
+                    <button type="button" className="secondary-button" onClick={() => void handleArchive(student)}>
+                      <Archive className="mr-2 h-4 w-4" />
+                      {student.kind === 'seeded' ? 'Hide' : 'Archive'}
+                    </button>
+                  )}
+                  {student.archivedAt && student.kind === 'custom' ? (
+                    <button type="button" className="danger-button" onClick={() => void handleDelete(student)}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ) : null}
-        </SectionCard>
-
-        <StudentEditorPanel
-          key={editingStudent?.id ?? (isCreating ? 'new' : 'idle')}
-          editingStudent={editingStudent}
-          isCreating={isCreating}
-          activationKey={editorActivationKey}
-          onBrowseStudents={focusStudentList}
-          onClose={closeEditor}
-          onCreated={(studentId, message) => {
-            setNotice(message)
-            setActionError('')
-            setSearchParams({ edit: studentId })
-            setEditorActivationKey((current) => current + 1)
-          }}
-          onUpdated={(studentId, message) => {
-            setNotice(message)
-            setActionError('')
-            setSearchParams({ edit: studentId })
-            setEditorActivationKey((current) => current + 1)
-          }}
+            )
+          })}
+        </section>
+      ) : (
+        <EmptyState
+          eyebrow="Students"
+          title="No student matches that view."
+          description="Adjust the search or filter, or create a new student profile to start a fresh coaching history."
+          action={
+            <Link className="primary-button" to="/students/new">
+              Create student
+            </Link>
+          }
         />
-      </div>
+      )}
     </div>
   )
 }

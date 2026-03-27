@@ -33,13 +33,13 @@ export function PgnDropZone({ value, onChange, onLoadDemo }: PgnDropZoneProps) {
           }
         }}
         className={[
-          'rounded-[1.75rem] border border-dashed p-5 transition-colors',
+          'rounded-2xl border border-dashed p-5 transition-colors',
           isDragging ? 'border-forest bg-mint-soft/70' : 'border-forest/20 bg-ivory/70',
         ].join(' ')}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
-            <div className="rounded-2xl bg-forest p-3 text-white">
+            <div className="rounded-xl bg-forest p-3 text-white">
               <FileUp className="h-5 w-5" />
             </div>
             <div>
@@ -80,7 +80,7 @@ export function PgnDropZone({ value, onChange, onLoadDemo }: PgnDropZoneProps) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder="[Event &quot;Training game&quot;]&#10;1. e4 e5 2. Nf3 ..."
-        className="min-h-[18rem] rounded-[1.75rem] border border-line bg-white p-5 text-sm leading-7 text-ink shadow-[0_24px_50px_-40px_rgba(18,36,24,0.18)] outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
+        className="min-h-[18rem] rounded-2xl border border-line bg-white p-5 text-sm leading-7 text-ink shadow-[0_18px_40px_-30px_rgba(18,36,24,0.14)] outline-none transition focus:border-forest/30 focus:ring-4 focus:ring-mint-soft/70"
       />
     </div>
   )
