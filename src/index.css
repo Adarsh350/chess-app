@@ -209,6 +209,26 @@ button {
   }
 }
 
+a.primary-button,
+button.primary-button,
+a.primary-button:visited,
+button.primary-button:visited,
+a.brand-button,
+button.brand-button,
+a.brand-button:visited,
+button.brand-button:visited {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+a.primary-button svg,
+button.primary-button svg,
+a.brand-button svg,
+button.brand-button svg {
+  color: #fff !important;
+  stroke: currentColor !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

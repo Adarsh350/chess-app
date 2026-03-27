@@ -1,4 +1,4 @@
-const CACHE_NAME = 'deepgame-coaching-os-v5'
+const CACHE_NAME = 'deepgame-coaching-os-v6'
 const ASSET_MANIFEST_URL = '/asset-manifest.json'
 const CORE_ASSETS = [
   '/',
