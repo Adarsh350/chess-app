@@ -1,4 +1,4 @@
-const CACHE_NAME = 'deepgame-coaching-os-v5'
+const CACHE_NAME = 'deepgame-coaching-os-v6'
 const STATIC_URLS = [
   '/',
   '/index.html',
