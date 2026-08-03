@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 .vercel
+
+.claude/
+CLAUDE.md
+AGENTS.md
