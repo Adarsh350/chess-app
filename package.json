@@ -2,6 +2,7 @@
   "name": "deepgame-coaching-os",
   "private": true,
   "version": "0.0.0",
+  "license": "MIT",
   "description": "Offline-first chess coaching workspace for PGN review, style diagnosis, and local Stockfish deep review.",
   "type": "module",
   "scripts": {
