@@ -28,3 +28,4 @@ dist-ssr
 .claude/
 CLAUDE.md
 AGENTS.md
+graphify-out/
